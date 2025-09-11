@@ -38,6 +38,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // IYBA smoke test endpoint
+  app.get("/api/iyba-smoke", async (req: Request, res: Response) => {
+    try {
+      const { iybaService } = await import("./services/iyba");
+      const data = await iybaService.searchComparableBoats("Sunseeker", undefined, 2019, "shaft", 5);
+      res.json({ 
+        count: data.length, 
+        sample: data.slice(0, 3),
+        hasApiKey: !!process.env.IYBA_KEY,
+        hasBrokerId: !!process.env.IYBA_BROKER_ID
+      });
+    } catch (error) {
+      console.error("IYBA smoke test error:", error);
+      res.status(500).json({ 
+        error: "IYBA test failed",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Main valuation endpoint
   app.post("/api/valuation", submitFormRateLimit, async (req: Request, res: Response) => {
     try {
