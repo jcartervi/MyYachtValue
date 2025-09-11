@@ -101,7 +101,7 @@ export default function BoatValuation() {
 
       {/* Hero Section */}
       <section className="gradient-bg text-white py-16 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-20" />
+        <div className="absolute inset-0 bg-blue-900 opacity-30" />
         <div 
           className="absolute inset-0 opacity-20"
           style={{
