@@ -224,10 +224,10 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
                 Valuation Report Generated!
               </h3>
               <p className="text-green-700 mt-1" data-testid="text-confirmation-message">
-                Your detailed valuation report for the {vessel.year} {vessel.brand} {vessel.model} 
+                Your detailed valuation report for the {vessel.year} {vessel.brand} {vessel.model}{" "}
                 has been generated successfully. A comprehensive analysis including market trends 
                 and selling strategies will be sent to {" "}
-                <span className="font-semibold" data-testid="text-lead-email">{lead.email}</span> 
+                <span className="font-semibold" data-testid="text-lead-email">{lead.email}</span>{" "}
                 upon request.
               </p>
               <p className="text-sm text-green-600 mt-2">
