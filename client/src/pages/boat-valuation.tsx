@@ -187,7 +187,12 @@ export default function BoatValuation() {
                 <p className="text-muted-foreground text-sm mb-4">
                   Browse boat listings and market opportunities in your area.
                 </p>
-                <Button variant="link" className="text-primary p-0" data-testid="button-find-boat">
+                <Button 
+                  variant="link" 
+                  className="text-primary p-0" 
+                  data-testid="button-find-boat"
+                  onClick={() => window.open('https://www.waveyachtsales.com/yachts-for-sale/', '_blank')}
+                >
                   Browse Listings <i className="fas fa-arrow-right ml-1" />
                 </Button>
               </CardContent>
