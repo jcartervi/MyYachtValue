@@ -122,7 +122,7 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
               <h3 className="text-lg font-semibold text-foreground mb-4">Valuation Range</h3>
               <div className="space-y-4">
                 <div className="text-center p-4 bg-primary bg-opacity-10 rounded-lg">
-                  <div className="text-sm text-primary/70 font-medium mb-1">Most Likely Value</div>
+                  <div className="text-sm text-white font-medium mb-1">Estimated Value</div>
                   <div className="text-3xl font-bold text-primary" data-testid="text-most-likely-value">
                     ${estimate.mostLikely.toLocaleString()}
                   </div>
