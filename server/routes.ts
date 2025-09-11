@@ -82,8 +82,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         leadId: lead.id,
       });
 
-      // Generate valuation estimate
-      const estimateResult = await estimatorService.generateEstimate(vesselData);
+      // Generate valuation estimate - convert undefined to null for estimator
+      const estimateInputData = {
+        brand: vesselData.brand,
+        model: vesselData.model || null,
+        year: vesselData.year || null,
+        loaFt: vesselData.loaFt || null,
+        engineType: vesselData.engineType || null,
+        horsepower: vesselData.horsepower || null,
+        hours: vesselData.hours || null,
+        gyro: vesselData.gyro || false,
+        refitYear: vesselData.refitYear || null,
+        region: vesselData.region || "SE_US",
+      };
+      const estimateResult = await estimatorService.generateEstimate(estimateInputData);
 
       // Create estimate record
       const estimate = await storage.createEstimate({

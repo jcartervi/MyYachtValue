@@ -83,7 +83,9 @@ export default function YachtForm({
     const savedData = loadFormData();
     if (savedData) {
       Object.entries(savedData).forEach(([key, value]) => {
-        form.setValue(key as keyof FormData, value);
+        if (value !== null && value !== undefined) {
+          form.setValue(key as keyof FormData, value as string | boolean);
+        }
       });
       toast({
         title: "Form Data Restored",

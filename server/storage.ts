@@ -37,7 +37,13 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const now = new Date();
     const lead: Lead = {
-      ...leadData,
+      name: leadData.name || null,
+      email: leadData.email,
+      phone: leadData.phone,
+      smsConsent: leadData.smsConsent || null,
+      city: leadData.city || null,
+      zipCode: leadData.zipCode || null,
+      ipAddress: leadData.ipAddress,
       id,
       tcpaTimestamp: now,
       createdAt: now,
@@ -62,7 +68,17 @@ export class MemStorage implements IStorage {
   async createVessel(vesselData: InsertVessel & { leadId: string }): Promise<Vessel> {
     const id = randomUUID();
     const vessel: Vessel = {
-      ...vesselData,
+      brand: vesselData.brand,
+      model: vesselData.model || null,
+      year: vesselData.year || null,
+      loaFt: vesselData.loaFt || null,
+      engineType: vesselData.engineType || null,
+      horsepower: vesselData.horsepower || null,
+      hours: vesselData.hours || null,
+      gyro: vesselData.gyro || null,
+      refitYear: vesselData.refitYear || null,
+      region: vesselData.region || null,
+      leadId: vesselData.leadId,
       id,
       createdAt: new Date(),
     };
