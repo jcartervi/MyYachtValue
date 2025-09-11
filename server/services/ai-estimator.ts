@@ -65,7 +65,8 @@ export class AIEstimatorService {
     let baseValue = 0;
     const brand = vessel.brand?.toLowerCase() || '';
     
-    if (brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti')) {
+    if (brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') || 
+        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram')) {
       // Luxury yacht brands - much higher values
       baseValue = length * length * 800; // $800 per sq foot equivalent for luxury yachts
     } else if (brand.includes('sea ray') || brand.includes('formula') || brand.includes('regal')) {
@@ -77,7 +78,8 @@ export class AIEstimatorService {
     }
     
     // Age depreciation (luxury yachts depreciate differently)
-    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut');
+    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
+                        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
     const yearFactor = luxuryBrand ? Math.max(0.4, 1 - (age * 0.08)) : Math.max(0.3, 1 - (age * 0.12));
     
     const expectedValue = Math.round(baseValue * yearFactor);
@@ -187,7 +189,8 @@ Please respond with a JSON object in exactly this format:
     const length = vessel.loaFt || 35;
     const year = vessel.year || 2020;
     const brand = vessel.brand?.toLowerCase() || '';
-    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti');
+    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
+                        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
     
     // Calculate base comparable price ranges
     let basePrice = 0;
@@ -218,7 +221,7 @@ Please respond with a JSON object in exactly this format:
     ${luxuryBrand ? '- Princess, Azimut similar models: $1.5M-3.5M' : ''}
 
     Generate similar vessels from competing ${luxuryBrand ? 'luxury' : ''} brands like:
-    ${luxuryBrand ? 'Sunseeker, Princess, Azimut, Ferretti, Pershing, Fairline' : 'Sea Ray, Formula, Regal, Boston Whaler'}
+    ${luxuryBrand ? 'Sunseeker, Princess, Azimut, Ferretti, Palmer Johnson, Hatteras, Viking, Bertram' : 'Sea Ray, Formula, Regal, Boston Whaler'}
 
     Respond with JSON array in this exact format with REALISTIC PRICES:
     [
@@ -284,7 +287,8 @@ Please respond with a JSON object containing a "comparables" array in exactly th
       
       // Ensure we return valid comparables with realistic pricing
       const brand = vessel.brand?.toLowerCase() || '';
-      const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti');
+      const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
+                        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
       const fallbackPrice = luxuryBrand ? (vessel.loaFt || 35) * (vessel.loaFt || 35) * 600 : (vessel.loaFt || 35) * 3000;
       
       const validComparables = comparables.slice(0, 8).map((comp: any) => ({
@@ -327,7 +331,8 @@ Please respond with a JSON object containing a "comparables" array in exactly th
     // Generate realistic synthetic comparables based on vessel type
     const length = vessel.loaFt || 35;
     const brand = vessel.brand?.toLowerCase() || '';
-    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti');
+    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
+                        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
     
     // Use proper luxury yacht pricing for synthetics too
     const baseValue = luxuryBrand ? length * length * 600 : length * 3000;
