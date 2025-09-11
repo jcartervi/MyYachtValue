@@ -33,6 +33,7 @@ interface ValuationData {
       region: string;
     }>;
     isPremiumLead: boolean;
+    aiStatus?: string;
   };
 }
 

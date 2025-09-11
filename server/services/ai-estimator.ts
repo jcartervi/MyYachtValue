@@ -78,7 +78,7 @@ export class AIEstimatorService {
       "narrative": "detailed explanation of valuation rationale"
     }`;
 
-    console.log("Making OpenAI Responses API call for boat valuation...");
+    console.log("Making OpenAI API call for boat valuation with new key...");
     
     // Convert the prompt to the new input format
     const input = `You are an expert marine appraiser. Provide realistic market valuations based on current boat market conditions. Always respond with valid JSON.
@@ -95,7 +95,7 @@ Please respond with a JSON object in exactly this format:
   "narrative": "detailed explanation of valuation rationale"
 }`;
     
-    const aiResponse = await callOpenAIResponses("gpt-5-nano", input);
+    const aiResponse = await callOpenAIResponses("gpt-4o-mini", input);
 
     if (aiResponse.status !== 'ok') {
       console.log(`OpenAI valuation failed with status: ${aiResponse.status}`);
@@ -113,18 +113,32 @@ Please respond with a JSON object in exactly this format:
     }
 
     console.log("OpenAI valuation API call successful");
-    const result = JSON.parse(aiResponse.text || '{}');
     
-    return {
-      low: Math.round(result.low || 50000),
-      mostLikely: Math.round(result.mostLikely || 75000),
-      high: Math.round(result.high || 100000),
-      wholesale: Math.round(result.wholesale || 45000),
-      confidence: (result.confidence === 'High' || result.confidence === 'Medium' || result.confidence === 'Low') 
-        ? result.confidence : 'Medium',
-      narrative: result.narrative || 'AI-generated valuation based on vessel specifications and market analysis.',
-      aiStatus: 'ok'
-    };
+    try {
+      const result = JSON.parse(aiResponse.text || '{}');
+      
+      return {
+        low: Math.round(result.low || 50000),
+        mostLikely: Math.round(result.mostLikely || 75000),
+        high: Math.round(result.high || 100000),
+        wholesale: Math.round(result.wholesale || 45000),
+        confidence: (result.confidence === 'High' || result.confidence === 'Medium' || result.confidence === 'Low') 
+          ? result.confidence : 'Medium',
+        narrative: result.narrative || 'AI-generated valuation based on vessel specifications and market analysis.',
+        aiStatus: 'ok'
+      };
+    } catch (parseError) {
+      console.warn("Failed to parse OpenAI valuation response:", parseError);
+      return {
+        low: 50000,
+        mostLikely: 75000,
+        high: 100000,
+        wholesale: 45000,
+        confidence: 'Low',
+        narrative: '⚠️ AI valuation data format error. Showing fallback estimate.',
+        aiStatus: 'error'
+      };
+    }
   }
 
   private async generateAIComparables(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<{
@@ -162,7 +176,7 @@ Please respond with a JSON object in exactly this format:
       }
     ]`;
 
-    console.log("Making OpenAI Responses API call for comparables...");
+    console.log("Making OpenAI API call for comparables with new key...");
     
     // Convert the prompt to the new input format  
     const input = `You are a yacht broker creating realistic comparable boat listings. Generate diverse, realistic market data with current pricing. Always respond with valid JSON array.
@@ -185,7 +199,7 @@ Please respond with a JSON object containing a "comparables" array in exactly th
   ]
 }`;
     
-    const aiResponse = await callOpenAIResponses("gpt-5-nano", input);
+    const aiResponse = await callOpenAIResponses("gpt-4o-mini", input);
 
     if (aiResponse.status !== 'ok') {
       console.log(`OpenAI comparables failed with status: ${aiResponse.status}`);
@@ -196,31 +210,40 @@ Please respond with a JSON object containing a "comparables" array in exactly th
     }
 
     console.log("OpenAI comparables API call successful");
-    const result = JSON.parse(aiResponse.text || '{"comparables": []}');
-    let comparables = result.comparables || result || [];
     
-    // Ensure comparables is an array
-    if (!Array.isArray(comparables)) {
-      console.warn("AI returned non-array comparables, using synthetic comparables");
+    try {
+      const result = JSON.parse(aiResponse.text || '{"comparables": []}');
+      let comparables = result.comparables || result || [];
+      
+      // Ensure comparables is an array
+      if (!Array.isArray(comparables)) {
+        console.warn("AI returned non-array comparables, using synthetic comparables");
+        return { 
+          comparables: this.generateSyntheticComparables(vessel),
+          aiStatus: 'ok' 
+        };
+      }
+      
+      // Ensure we return valid comparables
+      const validComparables = comparables.slice(0, 8).map((comp: any) => ({
+        title: comp.title || `${comp.year || ''} ${comp.brand || ''} ${comp.model || ''}`.trim(),
+        ask: Math.round(comp.ask || 50000),
+        year: comp.year || vessel.year || 2020,
+        loa: comp.loa || vessel.loaFt || 30,
+        region: comp.region || 'Various Regions',
+        brand: comp.brand || vessel.brand || 'Various',
+        model: comp.model || vessel.model || 'Various',
+        fuel_type: comp.fuel_type || vessel.fuelType || 'unknown'
+      }));
+
+      return { comparables: validComparables, aiStatus: 'ok' };
+    } catch (parseError) {
+      console.warn("Failed to parse OpenAI comparables response:", parseError);
       return { 
         comparables: this.generateSyntheticComparables(vessel),
-        aiStatus: 'ok' 
+        aiStatus: 'error' 
       };
     }
-    
-    // Ensure we return valid comparables
-    const validComparables = comparables.slice(0, 8).map((comp: any) => ({
-      title: comp.title || `${comp.year || ''} ${comp.brand || ''} ${comp.model || ''}`.trim(),
-      ask: Math.round(comp.ask || 50000),
-      year: comp.year || vessel.year || 2020,
-      loa: comp.loa || vessel.loaFt || 30,
-      region: comp.region || 'Various Regions',
-      brand: comp.brand || vessel.brand || 'Various',
-      model: comp.model || vessel.model || 'Various',
-      fuel_type: comp.fuel_type || vessel.fuelType || 'unknown'
-    }));
-
-    return { comparables: validComparables, aiStatus: 'ok' };
   }
 
   private determinePremiumStatus(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">, valuation: any): boolean {

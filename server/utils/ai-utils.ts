@@ -10,7 +10,7 @@ export interface AIResponse {
   status: 'ok' | 'rate_limited' | 'error';
 }
 
-// New function for the /v1/responses endpoint using direct HTTP
+// Dual-path AI function: try Responses API first, fallback to Chat Completions
 export async function callOpenAIResponses(
   model: string,
   input: string,
@@ -21,22 +21,38 @@ export async function callOpenAIResponses(
     return { text: null, status: 'error' };
   }
 
+  // Try Responses API first if enabled
+  if (process.env.OPENAI_USE_RESPONSES === 'true') {
+    const responsesResult = await tryResponsesAPI(apiKey, model, input, maxRetries);
+    if (responsesResult.status === 'ok') {
+      return responsesResult;
+    }
+    console.log('Responses API failed, falling back to Chat Completions...');
+  }
+
+  // Fallback to Chat Completions API with new key
   let delay = 600; // Start with 0.6s delay
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch('https://api.openai.com/v1/responses', {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model,
-          input,
-          store: false // Privacy: don't save user data at OpenAI
+          model: "gpt-4o-mini", // Use available model 
+          messages: [
+            {
+              role: "user",
+              content: input
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.3
         }),
-        signal: AbortSignal.timeout(15000) // 15 second timeout
+        signal: AbortSignal.timeout(30000) // 30 second timeout
       });
 
       if (!response.ok) {
@@ -54,16 +70,10 @@ export async function callOpenAIResponses(
 
       const data = await response.json();
       
-      // Parse response - try different response formats
+      // Parse chat completions response
       let text = null;
-      if (data.output) {
-        text = data.output;
-      } else if (data.content && Array.isArray(data.content)) {
-        text = data.content.map((c: any) => c.text || c).join('');
-      } else if (data.content) {
-        text = data.content;
-      } else if (data.text) {
-        text = data.text;
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        text = data.choices[0].message.content;
       }
 
       return {
@@ -85,6 +95,77 @@ export async function callOpenAIResponses(
       }
       
       // Network or other errors
+      return { text: null, status: 'error' };
+    }
+  }
+  
+  return { text: null, status: 'error' };
+}
+
+// Try the Responses API endpoint as requested
+async function tryResponsesAPI(
+  apiKey: string,
+  model: string,
+  input: string,
+  maxRetries: number
+): Promise<AIResponse> {
+  let delay = 600;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model === "gpt-4o-mini" ? "gpt-5-nano" : model, // Use requested model
+          input,
+          store: false // Privacy: don't save user data at OpenAI
+        }),
+        signal: AbortSignal.timeout(30000) // 30 second timeout
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          if (attempt < maxRetries) {
+            console.log(`Responses API rate limited, retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 1.8;
+            continue;
+          }
+          return { text: null, status: 'rate_limited' };
+        }
+        return { text: null, status: 'error' };
+      }
+
+      const data = await response.json();
+      
+      // Parse Responses API response format
+      let text = null;
+      if (data.output) {
+        text = data.output;
+      } else if (data.content) {
+        text = data.content;
+      } else if (data.text) {
+        text = data.text;
+      }
+
+      return { text, status: 'ok' };
+    } catch (error: any) {
+      console.log(`Responses API attempt ${attempt + 1}/${maxRetries + 1} failed:`, error.message);
+      
+      if (error.message?.includes('429') || error.message?.includes('rate')) {
+        if (attempt < maxRetries) {
+          console.log(`Rate limited, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 1.8;
+          continue;
+        }
+        return { text: null, status: 'rate_limited' };
+      }
+      
       return { text: null, status: 'error' };
     }
   }
