@@ -81,7 +81,7 @@ export default function BoatValuation() {
                 <i className="fas fa-ship text-white text-lg" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">AI Boat Evaluation</h1>
+                <h1 className="text-xl font-bold text-foreground">AI Boat Valuation</h1>
                 <p className="text-xs text-muted-foreground">Powered by AI Technology</p>
               </div>
             </div>
@@ -214,7 +214,7 @@ export default function BoatValuation() {
           <Card className="mt-12 shadow-lg">
             <CardContent className="p-8">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2">Why Trust AI Boat Evaluation?</h2>
+                <h2 className="text-2xl font-bold mb-2">Why Trust AI Boat Valuation?</h2>
                 <p className="text-muted-foreground">Your boat valuation is powered by advanced AI and real market data</p>
               </div>
               <div className="grid md:grid-cols-4 gap-8 text-center">
@@ -250,7 +250,7 @@ export default function BoatValuation() {
                   <i className="fas fa-ship text-white text-lg" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold">AI Boat Evaluation</h3>
+                  <h3 className="text-lg font-bold">AI Boat Valuation</h3>
                   <p className="text-xs text-muted-foreground">Powered by AI Technology</p>
                 </div>
               </div>
@@ -298,7 +298,7 @@ export default function BoatValuation() {
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 AI Boat Evaluation. All rights reserved. • Powered by Advanced AI • TCPA Compliant</p>
+            <p>&copy; 2024 AI Boat Valuation. All rights reserved. • Powered by Advanced AI • TCPA Compliant</p>
           </div>
         </div>
       </footer>

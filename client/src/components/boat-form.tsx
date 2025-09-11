@@ -340,7 +340,7 @@ export default function BoatForm({
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>
-                          I agree to receive texts/calls from AI Boat Evaluation
+                          I agree to receive texts/calls from AI Boat Valuation
                         </FormLabel>
                         <FormDescription>
                           Message & data rates may apply. You can opt out at any time.
