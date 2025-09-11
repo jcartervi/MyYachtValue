@@ -13,7 +13,7 @@ interface ValuationData {
     model?: string;
     year?: number;
     loaFt?: number;
-    engineType?: string;
+    fuelType?: string;
     hours?: number;
     condition?: string;
   };
@@ -95,10 +95,14 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
                     <span className="font-medium" data-testid="text-vessel-length">{vessel.loaFt}ft</span>
                   </div>
                 )}
-                {vessel.engineType && (
+                {vessel.fuelType && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Engine Type:</span>
-                    <span className="font-medium" data-testid="text-vessel-engine">{vessel.engineType.toUpperCase()}</span>
+                    <span className="text-muted-foreground">Fuel Type:</span>
+                    <span className="font-medium" data-testid="text-vessel-fuel">
+                      {vessel.fuelType === 'gas' ? 'Gas' : 
+                       vessel.fuelType === 'diesel' ? 'Diesel' : 
+                       vessel.fuelType === 'unknown' ? 'Unknown' : vessel.fuelType}
+                    </span>
                   </div>
                 )}
                 {vessel.hours !== null && vessel.hours !== undefined && (

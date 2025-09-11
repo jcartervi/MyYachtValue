@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // IYBA API Configuration
-const IYBA_KEY = process.env.IYBA_KEY || "9d5aa567b7b54f0619611cf3b2415b4661ecfc94";
-const IYBA_BROKER_ID = process.env.IYBA_BROKER_ID || "83692";
+const IYBA_KEY = process.env.IYBA_KEY;
+const IYBA_BROKER_ID = process.env.IYBA_BROKER_ID;
 const BASE_URL = "https://api.yachtbroker.org";
 
 // Cache configuration
@@ -115,6 +115,12 @@ function normalizeItem(item: RawIYBAItem): IYBAListing {
 }
 
 async function fetchFullSpecs(params: Record<string, any> = {}): Promise<IYBAListing[]> {
+  // Check if API credentials are configured
+  if (!IYBA_KEY || !IYBA_BROKER_ID) {
+    console.warn("IYBA API credentials not configured, skipping real data fetch");
+    return [];
+  }
+
   const url = `${BASE_URL}/listings`;
   
   // Base parameters for Full Specs JSON API
@@ -162,7 +168,7 @@ async function fetchFullSpecs(params: Record<string, any> = {}): Promise<IYBALis
     return normalized;
     
   } catch (error) {
-    console.error("IYBA fetch error:", error);
+    console.error("IYBA fetch error occurred");
     return [];
   }
 }
