@@ -1,8 +1,5 @@
-import OpenAI from "openai";
 import { Vessel } from "@shared/schema";
-
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { callOpenAI, AIResponse } from "../utils/ai-utils";
 
 export interface AIComparable {
   title: string;
@@ -24,34 +21,40 @@ export interface AIEstimate {
   narrative: string;
   comps: AIComparable[];
   isPremiumLead: boolean;
+  aiStatus: 'ok' | 'rate_limited' | 'error';
 }
 
 export class AIEstimatorService {
   async generateEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<AIEstimate> {
-    try {
-      // Generate comprehensive boat valuation using AI
-      const valuation = await this.generateAIValuation(vessel);
-      const comparables = await this.generateAIComparables(vessel);
-
+    // Try AI estimation with proper error handling
+    const valuationResult = await this.generateAIValuation(vessel);
+    
+    if (valuationResult.aiStatus === 'ok') {
+      // AI worked, get comparables too
+      const comparablesResult = await this.generateAIComparables(vessel);
+      
       return {
-        ...valuation,
-        comps: comparables,
-        isPremiumLead: this.determinePremiumStatus(vessel, valuation)
+        ...valuationResult,
+        comps: comparablesResult.comparables,
+        isPremiumLead: this.determinePremiumStatus(vessel, valuationResult),
+        aiStatus: 'ok'
       };
-    } catch (error: any) {
-      console.warn("AI estimator service failed:", error.message || error);
-      
-      // Check if it's a rate limit error specifically
-      if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('rate')) {
-        console.warn("OpenAI rate limit detected, using fallback estimation");
-      }
-      
-      // Always fallback to basic estimation when AI fails
-      return this.generateFallbackEstimate(vessel);
+    } else {
+      // AI failed, use fallback but preserve the status
+      console.warn(`AI estimation failed with status: ${valuationResult.aiStatus}`);
+      return this.generateFallbackEstimate(vessel, valuationResult.aiStatus);
     }
   }
 
-  private async generateAIValuation(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">) {
+  private async generateAIValuation(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<{
+    low: number;
+    mostLikely: number;
+    high: number;
+    wholesale: number;
+    confidence: "Low" | "Medium" | "High";
+    narrative: string;
+    aiStatus: 'ok' | 'rate_limited' | 'error';
+  }> {
     const prompt = `You are a professional marine surveyor and yacht broker with 20+ years of experience. 
     
     Provide a detailed valuation for this boat:
@@ -76,9 +79,9 @@ export class AIEstimatorService {
     }`;
 
     console.log("Making OpenAI API call for boat valuation...");
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // Using gpt-4o instead of gpt-5 as gpt-5 may not be available
-      messages: [
+    const aiResponse = await callOpenAI(
+      "gpt-4o",
+      [
         {
           role: "system",
           content: "You are an expert marine appraiser. Provide realistic market valuations based on current boat market conditions. Always respond with valid JSON."
@@ -88,12 +91,29 @@ export class AIEstimatorService {
           content: prompt
         }
       ],
-      response_format: { type: "json_object" },
-      temperature: 0.3
-    });
-    console.log("OpenAI valuation API call successful");
+      {
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      }
+    );
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    if (aiResponse.status !== 'ok') {
+      console.log(`OpenAI valuation failed with status: ${aiResponse.status}`);
+      return {
+        low: 50000,
+        mostLikely: 75000,
+        high: 100000,
+        wholesale: 45000,
+        confidence: 'Low',
+        narrative: aiResponse.status === 'rate_limited' 
+          ? '⚠️ AI valuation temporarily rate-limited. Showing fallback estimate.'
+          : '⚠️ AI valuation temporarily unavailable. Showing fallback estimate.',
+        aiStatus: aiResponse.status
+      };
+    }
+
+    console.log("OpenAI valuation API call successful");
+    const result = JSON.parse(aiResponse.text || '{}');
     
     return {
       low: Math.round(result.low || 50000),
@@ -102,11 +122,15 @@ export class AIEstimatorService {
       wholesale: Math.round(result.wholesale || 45000),
       confidence: (result.confidence === 'High' || result.confidence === 'Medium' || result.confidence === 'Low') 
         ? result.confidence : 'Medium',
-      narrative: result.narrative || 'AI-generated valuation based on vessel specifications and market analysis.'
+      narrative: result.narrative || 'AI-generated valuation based on vessel specifications and market analysis.',
+      aiStatus: 'ok'
     };
   }
 
-  private async generateAIComparables(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<AIComparable[]> {
+  private async generateAIComparables(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<{
+    comparables: AIComparable[];
+    aiStatus: 'ok' | 'rate_limited' | 'error';
+  }> {
     const prompt = `Generate 6-8 realistic comparable boat listings for market analysis.
 
     Target boat:
@@ -139,9 +163,9 @@ export class AIEstimatorService {
     ]`;
 
     console.log("Making OpenAI API call for comparables...");
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // Using gpt-4o instead of gpt-5 
-      messages: [
+    const aiResponse = await callOpenAI(
+      "gpt-4o",
+      [
         {
           role: "system",
           content: "You are a yacht broker creating realistic comparable boat listings. Generate diverse, realistic market data with current pricing. Always respond with valid JSON array."
@@ -151,22 +175,35 @@ export class AIEstimatorService {
           content: prompt
         }
       ],
-      response_format: { type: "json_object" },
-      temperature: 0.4
-    });
-    console.log("OpenAI comparables API call successful");
+      {
+        response_format: { type: "json_object" },
+        temperature: 0.4
+      }
+    );
 
-    const result = JSON.parse(response.choices[0].message.content || '{"comparables": []}');
+    if (aiResponse.status !== 'ok') {
+      console.log(`OpenAI comparables failed with status: ${aiResponse.status}`);
+      return { 
+        comparables: this.generateSyntheticComparables(vessel),
+        aiStatus: aiResponse.status 
+      };
+    }
+
+    console.log("OpenAI comparables API call successful");
+    const result = JSON.parse(aiResponse.text || '{"comparables": []}');
     let comparables = result.comparables || result || [];
     
     // Ensure comparables is an array
     if (!Array.isArray(comparables)) {
-      console.warn("AI returned non-array comparables, using empty array");
-      comparables = [];
+      console.warn("AI returned non-array comparables, using synthetic comparables");
+      return { 
+        comparables: this.generateSyntheticComparables(vessel),
+        aiStatus: 'ok' 
+      };
     }
     
     // Ensure we return valid comparables
-    return comparables.slice(0, 8).map((comp: any) => ({
+    const validComparables = comparables.slice(0, 8).map((comp: any) => ({
       title: comp.title || `${comp.year || ''} ${comp.brand || ''} ${comp.model || ''}`.trim(),
       ask: Math.round(comp.ask || 50000),
       year: comp.year || vessel.year || 2020,
@@ -176,6 +213,8 @@ export class AIEstimatorService {
       model: comp.model || vessel.model || 'Various',
       fuel_type: comp.fuel_type || vessel.fuelType || 'unknown'
     }));
+
+    return { comparables: validComparables, aiStatus: 'ok' };
   }
 
   private determinePremiumStatus(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">, valuation: any): boolean {
@@ -193,7 +232,45 @@ export class AIEstimatorService {
     return isPremiumBrand || isHighValue || isLargeVessel;
   }
 
-  private generateFallbackEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): AIEstimate {
+  private generateSyntheticComparables(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): AIComparable[] {
+    // Generate basic synthetic comparables when AI fails
+    const baseValue = (vessel.loaFt || 35) * 3000;
+    
+    return [
+      {
+        title: `${vessel.year || 2020} ${vessel.brand} ${vessel.model || 'Similar Model'}`,
+        ask: Math.round(baseValue * (0.95 + Math.random() * 0.1)),
+        year: vessel.year || 2020,
+        loa: vessel.loaFt || 35,
+        region: 'Florida',
+        brand: vessel.brand,
+        model: vessel.model || 'Similar Model',
+        fuel_type: vessel.fuelType || 'gas'
+      },
+      {
+        title: `${(vessel.year || 2020) - 1} ${vessel.brand} Comparable`,
+        ask: Math.round(baseValue * (0.85 + Math.random() * 0.15)),
+        year: (vessel.year || 2020) - 1,
+        loa: (vessel.loaFt || 35) - 1,
+        region: 'California',
+        brand: vessel.brand,
+        model: 'Similar Model',
+        fuel_type: vessel.fuelType || 'gas'
+      },
+      {
+        title: `${(vessel.year || 2020) + 1} ${vessel.brand} Sport`,
+        ask: Math.round(baseValue * (1.05 + Math.random() * 0.1)),
+        year: (vessel.year || 2020) + 1,
+        loa: (vessel.loaFt || 35) + 2,
+        region: 'Texas',
+        brand: vessel.brand,
+        model: 'Sport Model',
+        fuel_type: vessel.fuelType || 'gas'
+      }
+    ];
+  }
+
+  private generateFallbackEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">, aiStatus: 'rate_limited' | 'error'): AIEstimate {
     // Enhanced fallback calculation with better logic
     let baseValue = (vessel.loaFt || 35) * 3000; // $3000 per foot baseline
     
@@ -222,39 +299,9 @@ export class AIEstimatorService {
     const high = Math.round(mostLikely * 1.15);
     const wholesale = Math.round(mostLikely * 0.75);
 
-    // Generate simple comparable boats
-    const comps: AIComparable[] = [
-      {
-        title: `${vessel.year || 2020} ${vessel.brand} ${vessel.model || 'Similar Model'}`,
-        ask: Math.round(mostLikely * (0.95 + Math.random() * 0.1)),
-        year: vessel.year || 2020,
-        loa: vessel.loaFt || 35,
-        region: 'Florida',
-        brand: vessel.brand,
-        model: vessel.model || 'Similar Model',
-        fuel_type: vessel.fuelType || 'gas'
-      },
-      {
-        title: `${(vessel.year || 2020) - 1} ${vessel.brand} Comparable`,
-        ask: Math.round(mostLikely * (0.85 + Math.random() * 0.15)),
-        year: (vessel.year || 2020) - 1,
-        loa: (vessel.loaFt || 35) - 1,
-        region: 'California',
-        brand: vessel.brand,
-        model: 'Similar Model',
-        fuel_type: vessel.fuelType || 'gas'
-      },
-      {
-        title: `${(vessel.year || 2020) + 1} ${vessel.brand} Sport`,
-        ask: Math.round(mostLikely * (1.05 + Math.random() * 0.1)),
-        year: (vessel.year || 2020) + 1,
-        loa: (vessel.loaFt || 35) + 2,
-        region: 'Texas',
-        brand: vessel.brand,
-        model: 'Sport Model',
-        fuel_type: vessel.fuelType || 'gas'
-      }
-    ];
+    const statusMessage = aiStatus === 'rate_limited' 
+      ? '⚠️ AI analysis temporarily rate-limited. Showing rules-based estimate.' 
+      : '⚠️ AI analysis temporarily unavailable. Showing rules-based estimate.';
 
     return {
       low,
@@ -262,9 +309,10 @@ export class AIEstimatorService {
       high,
       wholesale,
       confidence: 'Medium',
-      narrative: `⚠️ AI-powered analysis temporarily unavailable. This valuation is based on our market analysis algorithms using vessel specifications. The ${vessel.year || 'current'} ${vessel.brand} ${vessel.model || ''} in ${vessel.condition || 'good'} condition represents solid value in today's market. Estimated using length-based pricing with adjustments for age, condition, and usage hours.`,
-      comps,
-      isPremiumLead: this.determinePremiumStatus(vessel, { mostLikely })
+      narrative: `${statusMessage} This valuation uses market analysis algorithms and vessel specifications. The ${vessel.year || 'current'} ${vessel.brand} ${vessel.model || ''} in ${vessel.condition || 'good'} condition represents solid value in today's market. Estimated using length-based pricing with adjustments for age, condition, and usage hours.`,
+      comps: this.generateSyntheticComparables(vessel),
+      isPremiumLead: this.determinePremiumStatus(vessel, { mostLikely }),
+      aiStatus
     };
   }
 }

@@ -17,6 +17,7 @@ export interface EstimateResult {
     region: string;
   }>;
   isPremiumLead: boolean;
+  aiStatus?: 'ok' | 'rate_limited' | 'error';
 }
 
 export interface EstimatorService {

@@ -7,6 +7,7 @@ import { estimatorService } from "./services/estimator";
 import { twilioService } from "./services/twilio";
 import { pipedriveService } from "./services/pipedrive";
 import { submitFormRateLimit, generalRateLimit } from "./middleware/rateLimit";
+import { openAIHealth } from "./utils/ai-utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Apply general rate limiting to all API routes
@@ -36,6 +37,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
   app.get("/api/health", (req: Request, res: Response) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // OpenAI health check endpoint
+  app.get("/api/health/openai", (req: Request, res: Response) => {
+    const health = openAIHealth();
+    res.json(health);
   });
 
   // IYBA smoke test endpoint
@@ -108,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         model: vesselData.model || null,
         year: vesselData.year || null,
         loaFt: vesselData.loaFt || null,
-        engineType: vesselData.engineType || null,
+        fuelType: vesselData.fuelType || null,
         horsepower: vesselData.horsepower || null,
         hours: vesselData.hours || null,
         refitYear: vesselData.refitYear || null,
@@ -156,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (process.env.PIPEDRIVE_FIELD_MODEL) customFields[process.env.PIPEDRIVE_FIELD_MODEL] = vessel.model;
           if (process.env.PIPEDRIVE_FIELD_YEAR) customFields[process.env.PIPEDRIVE_FIELD_YEAR] = vessel.year;
           if (process.env.PIPEDRIVE_FIELD_LOA) customFields[process.env.PIPEDRIVE_FIELD_LOA] = vessel.loaFt;
-          if (process.env.PIPEDRIVE_FIELD_ENGINE_TYPE) customFields[process.env.PIPEDRIVE_FIELD_ENGINE_TYPE] = vessel.engineType;
+          if (process.env.PIPEDRIVE_FIELD_FUEL_TYPE) customFields[process.env.PIPEDRIVE_FIELD_FUEL_TYPE] = vessel.fuelType;
           if (process.env.PIPEDRIVE_FIELD_HOURS) customFields[process.env.PIPEDRIVE_FIELD_HOURS] = vessel.hours;
           if (process.env.PIPEDRIVE_FIELD_VALUATION) customFields[process.env.PIPEDRIVE_FIELD_VALUATION] = JSON.stringify({
             low: estimate.low,
@@ -211,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           model: vessel.model,
           year: vessel.year,
           loaFt: vessel.loaFt,
-          engineType: vessel.engineType,
+          fuelType: vessel.fuelType,
           hours: vessel.hours,
           condition: vessel.condition,
         },
@@ -225,6 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           narrative: estimate.narrative,
           comps: estimate.comps,
           isPremiumLead: estimate.isPremiumLead,
+          aiStatus: estimateResult.aiStatus || 'unknown',
         },
       });
 
