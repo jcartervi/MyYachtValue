@@ -33,8 +33,8 @@ export function createRateLimit(options: RateLimitOptions) {
 
 // Pre-configured rate limiters
 export const submitFormRateLimit = createRateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 3, // 3 submissions per 15 minutes per IP
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  maxRequests: 10, // 10 submissions per 5 minutes per IP
   message: "Too many valuation requests. Please wait before submitting again.",
 });
 
