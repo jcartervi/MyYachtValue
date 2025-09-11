@@ -31,7 +31,6 @@ export const vessels = pgTable("vessels", {
   engineType: text("engine_type"), // shaft | ips | outboard | other
   horsepower: integer("horsepower"),
   hours: integer("hours"),
-  gyro: boolean("gyro").default(false),
   refitYear: integer("refit_year"),
   condition: text("condition").default("good"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -85,7 +84,6 @@ export const insertVesselSchema = createInsertSchema(vessels).omit({
   engineType: z.enum(["shaft", "ips", "outboard", "other"]).optional(),
   horsepower: z.number().min(1).max(50000).optional(),
   hours: z.number().min(0, "Hours cannot be negative").max(50000, "Hours seem too high").optional(),
-  gyro: z.boolean().default(false),
   refitYear: z.number().min(1950).max(new Date().getFullYear()).optional(),
   condition: z.string().default("good"),
 });

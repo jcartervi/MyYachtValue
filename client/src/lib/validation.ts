@@ -35,7 +35,6 @@ export const leadVesselValidationSchema = z.object({
     const num = parseInt(val);
     return num >= 0 && num <= 50000;
   }, "Hours must be between 0 and 50,000"),
-  gyro: z.boolean().default(false),
   refitYear: z.string().optional().refine((val) => {
     if (!val) return true;
     const num = parseInt(val);

@@ -29,7 +29,6 @@ interface FormData {
   engineType: string;
   horsepower: string;
   hours: string;
-  gyro: boolean;
   refitYear: string;
   condition: string;
 }
@@ -70,7 +69,6 @@ export default function BoatForm({
       engineType: "",
       horsepower: "",
       hours: "",
-      gyro: false,
       refitYear: "",
       condition: "good",
     },
@@ -174,7 +172,6 @@ export default function BoatForm({
             engineType: data.engineType || undefined,
             horsepower: data.horsepower ? parseInt(data.horsepower) : undefined,
             hours: data.hours ? parseInt(data.hours) : undefined,
-            gyro: data.gyro,
             refitYear: data.refitYear ? parseInt(data.refitYear) : undefined,
             condition: data.condition,
           },
@@ -558,29 +555,6 @@ export default function BoatForm({
                   />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="gyro"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          data-testid="checkbox-gyro"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Seakeeper/Gyro Stabilization
-                        </FormLabel>
-                        <FormDescription>
-                          Does your boat have gyroscopic stabilization?
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
 
                 {/* Cloudflare Turnstile */}
                 {import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ? (

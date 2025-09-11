@@ -91,7 +91,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         engineType: vesselData.engineType || null,
         horsepower: vesselData.horsepower || null,
         hours: vesselData.hours || null,
-        gyro: vesselData.gyro || false,
         refitYear: vesselData.refitYear || null,
         condition: vesselData.condition || "good",
       };
@@ -139,7 +138,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (process.env.PIPEDRIVE_FIELD_LOA) customFields[process.env.PIPEDRIVE_FIELD_LOA] = vessel.loaFt;
           if (process.env.PIPEDRIVE_FIELD_ENGINE_TYPE) customFields[process.env.PIPEDRIVE_FIELD_ENGINE_TYPE] = vessel.engineType;
           if (process.env.PIPEDRIVE_FIELD_HOURS) customFields[process.env.PIPEDRIVE_FIELD_HOURS] = vessel.hours;
-          if (process.env.PIPEDRIVE_FIELD_GYRO) customFields[process.env.PIPEDRIVE_FIELD_GYRO] = vessel.gyro ? "Yes" : "No";
           if (process.env.PIPEDRIVE_FIELD_VALUATION) customFields[process.env.PIPEDRIVE_FIELD_VALUATION] = JSON.stringify({
             low: estimate.low,
             mostLikely: estimate.mostLikely,
@@ -195,7 +193,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           loaFt: vessel.loaFt,
           engineType: vessel.engineType,
           hours: vessel.hours,
-          gyro: vessel.gyro,
         },
         estimate: {
           id: estimate.id,

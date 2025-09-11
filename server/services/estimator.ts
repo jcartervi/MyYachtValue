@@ -43,10 +43,6 @@ class EstimatorServiceImpl implements EstimatorService {
       base -= Math.floor(excessHours / 100) * 7_000;
     }
 
-    // Gyro/stabilizer premium
-    if (vessel.gyro) {
-      base = Math.floor(base * 1.05);
-    }
 
     // Recent refit premium
     if (vessel.refitYear && vessel.year && (vessel.refitYear - vessel.year) >= 3) {
@@ -131,9 +127,6 @@ class EstimatorServiceImpl implements EstimatorService {
       narrative += "competitive pricing reflecting age-appropriate market positioning. ";
     }
 
-    if (vessel.gyro) {
-      narrative += "The presence of gyro stabilization adds significant value and appeal to prospective buyers. ";
-    }
 
     if (vessel.refitYear && vessel.year && (vessel.refitYear - vessel.year) >= 3) {
       narrative += "Recent refit work enhances the vessel's condition and market position. ";
