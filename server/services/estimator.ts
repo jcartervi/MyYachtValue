@@ -1,4 +1,5 @@
 import { Vessel, PREMIUM_BRANDS, PREMIUM_YEAR_THRESHOLD, PREMIUM_HOURS_THRESHOLD } from "@shared/schema";
+import { iybaService } from "./iyba";
 
 export interface EstimateResult {
   low: number;
@@ -84,7 +85,7 @@ class EstimatorServiceImpl implements EstimatorService {
     const narrative = this.generateNarrative(vessel, low, high, mostLikely);
 
     // Generate comparable sales
-    const comps = this.generateComparables(vessel, mostLikely);
+    const comps = await this.generateComparables(vessel, mostLikely);
 
     return {
       low,
@@ -137,16 +138,40 @@ class EstimatorServiceImpl implements EstimatorService {
     return narrative;
   }
 
-  private generateComparables(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">, mostLikely: number): Array<{
+  private async generateComparables(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">, mostLikely: number): Promise<Array<{
     title: string;
     ask: number;
     year: number;
     loa: number;
     region: string;
-  }> {
+  }>> {
+    try {
+      // Try to get real comparable boats from IYBA API
+      const realComparables = await iybaService.searchComparableBoats(
+        vessel.brand,
+        vessel.model || undefined,
+        vessel.year || undefined,
+        vessel.engineType || undefined,
+        3 // Limit to 3 comparables
+      );
+
+      if (realComparables && realComparables.length > 0) {
+        return realComparables.map(comp => ({
+          title: comp.title,
+          ask: comp.ask,
+          year: comp.year || vessel.year || 2020,
+          loa: comp.loa || vessel.loaFt || 65,
+          region: comp.region || "Various"
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch real comparables, falling back to estimated data:", error);
+    }
+
+    // Fallback to estimated comparables if API fails or returns no results
     const baseYear = vessel.year || 2020;
     const baseLoa = vessel.loaFt || 65;
-    const region = "Various"; // No longer using region, keeping for display
+    const region = "Various";
 
     return [
       {
