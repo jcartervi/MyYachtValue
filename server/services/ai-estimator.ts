@@ -75,8 +75,9 @@ export class AIEstimatorService {
       "narrative": "detailed explanation of valuation rationale"
     }`;
 
+    console.log("Making OpenAI API call for boat valuation...");
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o", // Using gpt-4o instead of gpt-5 as gpt-5 may not be available
       messages: [
         {
           role: "system",
@@ -90,6 +91,7 @@ export class AIEstimatorService {
       response_format: { type: "json_object" },
       temperature: 0.3
     });
+    console.log("OpenAI valuation API call successful");
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
     
@@ -136,8 +138,9 @@ export class AIEstimatorService {
       }
     ]`;
 
+    console.log("Making OpenAI API call for comparables...");
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o", // Using gpt-4o instead of gpt-5 
       messages: [
         {
           role: "system",
@@ -151,6 +154,7 @@ export class AIEstimatorService {
       response_format: { type: "json_object" },
       temperature: 0.4
     });
+    console.log("OpenAI comparables API call successful");
 
     const result = JSON.parse(response.choices[0].message.content || '{"comparables": []}');
     let comparables = result.comparables || result || [];
@@ -258,7 +262,7 @@ export class AIEstimatorService {
       high,
       wholesale,
       confidence: 'Medium',
-      narrative: `This valuation is based on our market analysis algorithms using vessel specifications. The ${vessel.year || 'current'} ${vessel.brand} ${vessel.model || ''} in ${vessel.condition || 'good'} condition represents solid value in today's market. Estimated using length-based pricing with adjustments for age, condition, and usage hours.`,
+      narrative: `⚠️ AI-powered analysis temporarily unavailable. This valuation is based on our market analysis algorithms using vessel specifications. The ${vessel.year || 'current'} ${vessel.brand} ${vessel.model || ''} in ${vessel.condition || 'good'} condition represents solid value in today's market. Estimated using length-based pricing with adjustments for age, condition, and usage hours.`,
       comps,
       isPremiumLead: this.determinePremiumStatus(vessel, { mostLikely })
     };

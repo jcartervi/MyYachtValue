@@ -31,7 +31,7 @@ class EstimatorServiceImpl implements EstimatorService {
     try {
       const aiResult = await this.aiEstimator.generateEstimate(vessel);
       return aiResult;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("AI estimation failed, falling back to rules-based estimation. Reason:", error.message || error);
       return this.generateRulesBasedEstimate(vessel);
     }
