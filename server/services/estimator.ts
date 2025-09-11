@@ -53,14 +53,15 @@ class EstimatorServiceImpl implements EstimatorService {
       base = Math.floor(base * 1.03);
     }
 
-    // Regional adjustments
-    const regionFactors: Record<string, number> = {
-      "SE_US": 1.00,
-      "NE_US": 0.98,
-      "MED": 1.04,
-      "CARIB": 1.02,
+    // Condition adjustments
+    const conditionFactors: Record<string, number> = {
+      "excellent": 1.15,
+      "very_good": 1.05,
+      "good": 1.00,
+      "fair": 0.85,
+      "poor": 0.65,
     };
-    base = Math.floor(base * (regionFactors[vessel.region || "SE_US"] || 1.0));
+    base = Math.floor(base * (conditionFactors[vessel.condition || "good"] || 1.0));
 
     // Calculate range
     const low = Math.floor(base * 0.92);
@@ -116,11 +117,11 @@ class EstimatorServiceImpl implements EstimatorService {
     const length = vessel.loaFt ? `${vessel.loaFt}ft ` : "";
     const engineType = vessel.engineType || "unspecified";
     const hours = vessel.hours !== null && vessel.hours !== undefined ? vessel.hours : "unknown";
-    const region = vessel.region || "SE_US";
+    const condition = vessel.condition || "good";
 
-    let narrative = `This estimate reflects recent market conditions for comparable boats with similar specifications in the ${region} region. `;
+    let narrative = `This estimate reflects recent market conditions for comparable boats with similar specifications and condition. `;
     
-    narrative += `The ${year} ${brand} ${model} ${length}with ${engineType} engines and approximately ${hours} hours represents `;
+    narrative += `The ${year} ${brand} ${model} ${length} in ${condition} condition with ${engineType} engines and approximately ${hours} hours represents `;
     
     if (vessel.year && vessel.year >= 2020) {
       narrative += "excellent value in today's market with modern systems and low depreciation. ";
@@ -152,7 +153,7 @@ class EstimatorServiceImpl implements EstimatorService {
   }> {
     const baseYear = vessel.year || 2020;
     const baseLoa = vessel.loaFt || 65;
-    const region = vessel.region === "SE_US" ? "FL" : "Various";
+    const region = "Various"; // No longer using region, keeping for display
 
     return [
       {

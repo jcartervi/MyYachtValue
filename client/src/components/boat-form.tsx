@@ -31,7 +31,7 @@ interface FormData {
   hours: string;
   gyro: boolean;
   refitYear: string;
-  region: string;
+  condition: string;
 }
 
 interface BoatFormProps {
@@ -72,7 +72,7 @@ export default function BoatForm({
       hours: "",
       gyro: false,
       refitYear: "",
-      region: "SE_US",
+      condition: "good",
     },
   });
 
@@ -176,7 +176,7 @@ export default function BoatForm({
             hours: data.hours ? parseInt(data.hours) : undefined,
             gyro: data.gyro,
             refitYear: data.refitYear ? parseInt(data.refitYear) : undefined,
-            region: data.region,
+            condition: data.condition,
           },
           turnstileToken,
           utmParams,
@@ -534,21 +534,22 @@ export default function BoatForm({
 
                   <FormField
                     control={form.control}
-                    name="region"
+                    name="condition"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Region</FormLabel>
+                        <FormLabel>Condition</FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-region">
-                              <SelectValue placeholder="Select region" />
+                            <SelectTrigger data-testid="select-condition">
+                              <SelectValue placeholder="Select condition" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="SE_US">Southeast US</SelectItem>
-                            <SelectItem value="NE_US">Northeast US</SelectItem>
-                            <SelectItem value="MED">Mediterranean</SelectItem>
-                            <SelectItem value="CARIB">Caribbean</SelectItem>
+                            <SelectItem value="excellent">Excellent</SelectItem>
+                            <SelectItem value="very_good">Very Good</SelectItem>
+                            <SelectItem value="good">Good</SelectItem>
+                            <SelectItem value="fair">Fair</SelectItem>
+                            <SelectItem value="poor">Poor</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

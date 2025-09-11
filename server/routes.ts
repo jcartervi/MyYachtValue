@@ -93,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hours: vesselData.hours || null,
         gyro: vesselData.gyro || false,
         refitYear: vesselData.refitYear || null,
-        region: vesselData.region || "SE_US",
+        condition: vesselData.condition || "good",
       };
       const estimateResult = await estimatorService.generateEstimate(estimateInputData);
 

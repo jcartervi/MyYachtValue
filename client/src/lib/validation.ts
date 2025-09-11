@@ -41,7 +41,7 @@ export const leadVesselValidationSchema = z.object({
     const num = parseInt(val);
     return num >= 1950 && num <= new Date().getFullYear();
   }, "Refit year must be between 1950 and current year"),
-  region: z.string().default("SE_US"),
+  condition: z.string().default("good"),
 });
 
 export type LeadVesselFormData = z.infer<typeof leadVesselValidationSchema>;

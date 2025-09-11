@@ -33,7 +33,7 @@ export const vessels = pgTable("vessels", {
   hours: integer("hours"),
   gyro: boolean("gyro").default(false),
   refitYear: integer("refit_year"),
-  region: text("region").default("SE_US"),
+  condition: text("condition").default("good"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -87,7 +87,7 @@ export const insertVesselSchema = createInsertSchema(vessels).omit({
   hours: z.number().min(0, "Hours cannot be negative").max(50000, "Hours seem too high").optional(),
   gyro: z.boolean().default(false),
   refitYear: z.number().min(1950).max(new Date().getFullYear()).optional(),
-  region: z.string().default("SE_US"),
+  condition: z.string().default("good"),
 });
 
 export const createEstimateRequestSchema = z.object({
