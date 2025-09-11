@@ -26,7 +26,7 @@ interface FormData {
   model: string;
   year: string;
   loaFt: string;
-  engineType: string;
+  fuelType: string;
   horsepower: string;
   hours: string;
   refitYear: string;
@@ -66,7 +66,7 @@ export default function BoatForm({
       model: "",
       year: "",
       loaFt: "",
-      engineType: "",
+      fuelType: "",
       horsepower: "",
       hours: "",
       refitYear: "",
@@ -169,7 +169,7 @@ export default function BoatForm({
             model: data.model || undefined,
             year: data.year ? parseInt(data.year) : undefined,
             loaFt: data.loaFt ? parseFloat(data.loaFt) : undefined,
-            engineType: data.engineType || undefined,
+            fuelType: data.fuelType || undefined,
             horsepower: data.horsepower ? parseInt(data.horsepower) : undefined,
             hours: data.hours ? parseInt(data.hours) : undefined,
             refitYear: data.refitYear ? parseInt(data.refitYear) : undefined,
@@ -440,21 +440,20 @@ export default function BoatForm({
 
                   <FormField
                     control={form.control}
-                    name="engineType"
+                    name="fuelType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Engine Type</FormLabel>
+                        <FormLabel>Fuel Type</FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-engine-type">
-                              <SelectValue placeholder="Select engine type" />
+                            <SelectTrigger data-testid="select-fuel-type">
+                              <SelectValue placeholder="Select fuel type" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="shaft">Shaft Drive</SelectItem>
-                            <SelectItem value="ips">IPS</SelectItem>
-                            <SelectItem value="outboard">Outboard</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="gas">Gas</SelectItem>
+                            <SelectItem value="diesel">Diesel</SelectItem>
+                            <SelectItem value="unknown">Unknown</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

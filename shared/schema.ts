@@ -28,7 +28,7 @@ export const vessels = pgTable("vessels", {
   model: text("model"),
   year: integer("year"),
   loaFt: real("loa_ft"),
-  engineType: text("engine_type"), // shaft | ips | outboard | other
+  fuelType: text("fuel_type"), // gas | diesel | unknown
   horsepower: integer("horsepower"),
   hours: integer("hours"),
   refitYear: integer("refit_year"),
@@ -81,7 +81,7 @@ export const insertVesselSchema = createInsertSchema(vessels).omit({
   model: z.string().optional(),
   year: z.number().min(1950, "Year must be after 1950").max(new Date().getFullYear() + 1, "Year cannot be in the future").optional(),
   loaFt: z.number().min(20, "Length must be at least 20 feet").max(500, "Length cannot exceed 500 feet").optional(),
-  engineType: z.enum(["shaft", "ips", "outboard", "other"]).optional(),
+  fuelType: z.enum(["gas", "diesel", "unknown"]).optional(),
   horsepower: z.number().min(1).max(50000).optional(),
   hours: z.number().min(0, "Hours cannot be negative").max(50000, "Hours seem too high").optional(),
   refitYear: z.number().min(1950).max(new Date().getFullYear()).optional(),
