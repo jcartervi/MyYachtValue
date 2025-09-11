@@ -202,7 +202,7 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
               data-testid="button-call-james"
             >
               <i className="fas fa-phone mr-2" />
-              Call James: (954) 541-0105
+              Call Us: (954) 541-0105
             </Button>
             <Button 
               onClick={onEmailReport}
