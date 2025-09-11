@@ -162,7 +162,7 @@ export default function BoatValuation() {
 
         {/* Additional Services */}
         {currentStep === 3 && (
-          <div className="mt-12 grid md:grid-cols-3 gap-6">
+          <div className="mt-12 grid md:grid-cols-2 gap-6">
             <Card className="text-center">
               <CardContent className="p-6">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -194,21 +194,6 @@ export default function BoatValuation() {
                   onClick={() => window.open('https://www.waveyachtsales.com/yachts-for-sale/', '_blank')}
                 >
                   Browse Listings <i className="fas fa-arrow-right ml-1" />
-                </Button>
-              </CardContent>
-            </Card>
-            
-            <Card className="text-center">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <i className="fas fa-calculator text-purple-600 text-xl" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Financing Options</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Get connected with marine financing specialists for your next purchase.
-                </p>
-                <Button variant="link" className="text-primary p-0" data-testid="button-financing">
-                  Get Rates <i className="fas fa-arrow-right ml-1" />
                 </Button>
               </CardContent>
             </Card>
