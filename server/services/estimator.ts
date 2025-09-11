@@ -112,13 +112,13 @@ class EstimatorServiceImpl implements EstimatorService {
     const brand = vessel.brand;
     const model = vessel.model || "";
     const length = vessel.loaFt ? `${vessel.loaFt}ft ` : "";
-    const engineType = vessel.engineType || "unspecified";
+    const fuelType = vessel.fuelType || "unspecified";
     const hours = vessel.hours !== null && vessel.hours !== undefined ? vessel.hours : "unknown";
     const condition = vessel.condition || "good";
 
     let narrative = `This estimate reflects recent market conditions for comparable boats with similar specifications and condition. `;
     
-    narrative += `The ${year} ${brand} ${model} ${length} in ${condition} condition with ${engineType} engines and approximately ${hours} hours represents `;
+    narrative += `The ${year} ${brand} ${model} ${length} in ${condition} condition with ${fuelType} fuel and approximately ${hours} hours represents `;
     
     if (vessel.year && vessel.year >= 2020) {
       narrative += "excellent value in today's market with modern systems and low depreciation. ";
@@ -151,7 +151,7 @@ class EstimatorServiceImpl implements EstimatorService {
         vessel.brand,
         vessel.model || undefined,
         vessel.year || undefined,
-        vessel.engineType || undefined,
+        vessel.fuelType || undefined,
         3 // Limit to 3 comparables
       );
 

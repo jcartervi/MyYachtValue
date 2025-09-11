@@ -18,7 +18,7 @@ interface IYBAListing {
   url?: string;
   brand: string;
   model: string;
-  engine_type: string;
+  fuel_type: string;
 }
 
 interface RawIYBAItem {
@@ -42,6 +42,8 @@ interface RawIYBAItem {
   permalink?: string;
   propulsion?: string;
   drive_type?: string;
+  fuel?: string;
+  fuel_type?: string;
 }
 
 function getCachedData(key: string): any[] | null {
@@ -64,6 +66,31 @@ function setCachedData(key: string, data: any[]): void {
   });
 }
 
+function inferFuelType(item: RawIYBAItem): string {
+  // Check if we have explicit fuel type data
+  const fuelType = item.fuel || item.fuel_type;
+  if (fuelType) {
+    const fuel = fuelType.toLowerCase().trim();
+    if (fuel.includes('gas') || fuel.includes('gasoline') || fuel.includes('petrol')) return 'gas';
+    if (fuel.includes('diesel')) return 'diesel';
+  }
+
+  // Infer from propulsion/drive type
+  const propulsion = (item.propulsion || item.drive_type || "").toLowerCase().trim();
+  
+  // Outboard engines are typically gas
+  if (propulsion.includes('outboard')) return 'gas';
+  
+  // Shaft drive and IPS are typically diesel on larger boats
+  if (propulsion.includes('shaft') || propulsion.includes('ips')) return 'diesel';
+  
+  // Pod drives and sterndrives can be either, but commonly gas on smaller boats
+  if (propulsion.includes('pod') || propulsion.includes('sterndrive')) return 'gas';
+  
+  // Default to unknown if we can't determine
+  return 'unknown';
+}
+
 function normalizeItem(item: RawIYBAItem): IYBAListing {
   const year = item.year || item.vessel_year;
   const brand = item.brand || item.make || "";
@@ -83,7 +110,7 @@ function normalizeItem(item: RawIYBAItem): IYBAListing {
     url,
     brand: brand.trim(),
     model: model.trim(),
-    engine_type: (item.propulsion || item.drive_type || "").toLowerCase().trim()
+    fuel_type: inferFuelType(item)
   };
 }
 
@@ -144,7 +171,7 @@ export async function searchComparableBoats(
   brand?: string,
   model?: string,
   year?: number,
-  engineType?: string,
+  fuelType?: string,
   limit: number = 8
 ): Promise<IYBAListing[]> {
   try {
@@ -172,19 +199,13 @@ export async function searchComparableBoats(
         return false;
       }
 
-      // Engine type matching
-      if (engineType) {
-        const engineTypeLower = engineType.toLowerCase();
-        const listingEngine = listing.engine_type;
+      // Fuel type matching
+      if (fuelType) {
+        const fuelTypeLower = fuelType.toLowerCase();
+        const listingFuel = listing.fuel_type;
         
-        if (!listingEngine.includes(engineTypeLower)) {
-          // More flexible matching for common engine types
-          const isMatch = 
-            (engineTypeLower === "shaft" && listingEngine.includes("shaft")) ||
-            (engineTypeLower === "ips" && listingEngine.includes("ips")) ||
-            (engineTypeLower === "outboard" && listingEngine.includes("outboard"));
-          
-          if (!isMatch) {
+        if (fuelTypeLower !== 'unknown' && listingFuel !== 'unknown') {
+          if (listingFuel !== fuelTypeLower) {
             return false;
           }
         }
