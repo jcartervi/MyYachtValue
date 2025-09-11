@@ -213,6 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           loaFt: vessel.loaFt,
           engineType: vessel.engineType,
           hours: vessel.hours,
+          condition: vessel.condition,
         },
         estimate: {
           id: estimate.id,

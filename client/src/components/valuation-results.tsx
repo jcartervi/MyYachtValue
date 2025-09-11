@@ -15,6 +15,7 @@ interface ValuationData {
     loaFt?: number;
     engineType?: string;
     hours?: number;
+    condition?: string;
   };
   estimate: {
     id: string;
@@ -104,6 +105,15 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Hours:</span>
                     <span className="font-medium" data-testid="text-vessel-hours">{vessel.hours.toLocaleString()}</span>
+                  </div>
+                )}
+                {vessel.condition && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Condition:</span>
+                    <span className="font-medium" data-testid="text-vessel-condition">
+                      {vessel.condition === 'very_good' ? 'Very Good' : 
+                       vessel.condition.charAt(0).toUpperCase() + vessel.condition.slice(1)}
+                    </span>
                   </div>
                 )}
               </div>
