@@ -1,0 +1,215 @@
+# ===========================
+# Add AI Double-Check (RAG)
+# ===========================
+
+# --- backend/ai_check.py ---
+cat > backend/ai_check.py <<'EOF'
+import os, json
+from typing import List, Dict, Any
+from openai import OpenAI
+
+# Uses the same key style as your estimator; if you hard-coded elsewhere, this picks up the env var.
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def ai_second_opinion(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Input payload expects:
+      - "lead": { brand, model, year, fuel_type, hours, gyro, refit_year, condition }
+      - "estimate": { low, most_likely, high, wholesale, confidence }
+      - "comps": [ {title, ask, year, loa, region, url?}, ... ] (live from IYBA)
+    Returns an adjusted band + confidence + flags + rationale.
+    """
+    lead = payload.get("lead", {})
+    est  = payload.get("estimate", {})
+    comps = payload.get("comps", [])[:12]  # keep prompt compact
+
+    # Light normalization
+    for c in comps:
+        # ensure ints/strings
+        if "ask" in c and isinstance(c["ask"], str):
+            try: c["ask"] = int(c["ask"].replace(",", ""))
+            except: pass
+
+    sys = (
+        "You are a marine market valuation analyst. "
+        "Given subject vessel inputs and comparable listings (with asking prices), "
+        "provide a reasoned second opinion. Use comps to sanity-check the initial range. "
+        "Be concise, numeric, and practical."
+    )
+
+    usr = {
+        "subject": {
+            "brand": lead.get("brand"),
+            "model": lead.get("model"),
+            "year": lead.get("year"),
+            "fuel_type": lead.get("fuel_type"),
+            "hours": lead.get("hours"),
+            "gyro": lead.get("gyro"),
+            "refit_year": lead.get("refit_year"),
+            "condition": lead.get("condition")
+        },
+        "first_estimate": est,
+        "comps_sample": comps
+    }
+
+    inst = (
+        "TASKS:\n"
+        "1) Compare the subject to comps and assess if first_estimate is high/low/appropriate.\n"
+        "2) Propose an adjusted retail range (low/most/high) and a wholesale estimate if warranted.\n"
+        "3) Give a 1-3 sentence rationale. Call out any outliers in comps.\n"
+        "FORMAT (strict JSON): "
+        '{"adjusted":{"low":int,"most_likely":int,"high":int,"wholesale":int},'
+        '"confidence":"Low|Medium|High","flags":[string,...],"rationale":string}'
+    )
+
+    try:
+        resp = client.responses.create(
+            model="gpt-5.1-mini",
+            input=[
+                {"role":"system","content":sys},
+                {"role":"user","content":json.dumps(usr, ensure_ascii=False)},
+                {"role":"user","content":inst}
+            ],
+            temperature=0.2,
+        )
+        # Parse model output as JSON
+        text = resp.output_text.strip()
+        # Try to locate JSON if the model wrapped it
+        start = text.find("{")
+        end = text.rfind("}")
+        j = text[start:end+1] if start != -1 and end != -1 else text
+        data = json.loads(j)
+        # minimal sanity
+        if "adjusted" not in data or "most_likely" not in data["adjusted"]:
+            raise ValueError("AI did not return expected keys")
+        return {"ok": True, "ai": data}
+    except Exception as e:
+        return {"ok": False, "error": f"AI check error: {e}"}
+EOF
+
+# --- backend/main.py: add /api/ai-check route ---
+python - <<'PY'
+import pathlib
+p = pathlib.Path("backend/main.py")
+s = p.read_text()
+if "def ai_check(" not in s and "/api/ai-check" not in s:
+    insert = """
+
+from fastapi import Body
+from .models import EstimateRequest
+from .estimate import estimate
+from .ai_check import ai_second_opinion
+
+@app.post("/api/ai-check")
+def ai_check(payload: dict = Body(...)):
+    # Payload may include the raw fields (brand/model/etc). If not, just echo.
+    lead = payload.get("lead") or {}
+    # Build an estimate based on the provided lead data (pulls live IYBA comps inside)
+    req = EstimateRequest(
+        brand=lead.get("brand"),
+        model=lead.get("model"),
+        year=lead.get("year"),
+        fuel_type=lead.get("fuel_type"),
+        hours=lead.get("hours"),
+        gyro=lead.get("gyro") or False,
+        refit_year=lead.get("refit_year"),
+        condition=lead.get("condition") or "average"
+    )
+    est = estimate(req)
+    # Create the bundle for AI
+    bundle = {
+        "lead": lead,
+        "estimate": est.dict(),
+        "comps": est.comps
+    }
+    ai = ai_second_opinion(bundle)
+    return {"ok": True, "estimate": est.dict(), "ai": ai}
+"""
+    # Append to end of file
+    s = s + insert
+    p.write_text(s)
+    print("Added /api/ai-check endpoint.")
+else:
+    print("/api/ai-check already present.")
+PY
+
+# --- frontend: add "AI Double-Check" button on Step 3 ---
+python - <<'PY'
+import pathlib, re
+p = pathlib.Path("frontend/src/api.js")
+api = p.read_text()
+if "export async function aiCheck" not in api:
+    api += """
+
+export async function aiCheck(lead) {
+  const base = import.meta.env.VITE_API || 'http://127.0.0.1:8000'
+  const res = await fetch(`${base}/api/ai-check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lead })
+  })
+  if (!res.ok) throw new Error('AI check failed')
+  return res.json()
+}
+"""
+    p.write_text(api)
+    print("Added aiCheck() to api.js")
+else:
+    print("aiCheck() already exists.")
+
+# Modify App.jsx to include the button + render AI result
+p = pathlib.Path("frontend/src/App.jsx")
+s = p.read_text()
+
+# Import aiCheck if not present
+if "aiCheck" not in s:
+    s = s.replace("import { submitLead } from './api'", "import { submitLead, aiCheck } from './api'")
+
+# Add AI state and button + render
+if "const [aiOpinion" not in s:
+    s = s.replace(
+        "const [estimate, setEstimate] = useState(null)",
+        "const [estimate, setEstimate] = useState(null)\n  const [aiOpinion, setAiOpinion] = useState(null)\n  const [aiLoading, setAiLoading] = useState(false)"
+    )
+
+# Insert button after estimate block (only if not already added)
+if "Run AI Double-Check" not in s:
+    s = s.replace(
+        "</div>\n        </>\n      )}",
+        """<button disabled={aiLoading} onClick={async ()=>{
+              setAiOpinion(null); setAiLoading(true);
+              try{
+                const resp = await aiCheck({
+                  brand: vessel.brand, model: vessel.model, year: parseInt(vessel.year||0)||null,
+                  fuel_type: vessel.fuel_type||null, hours: parseInt(vessel.hours||0)||null,
+                  gyro: !!vessel.gyro, refit_year: parseInt(vessel.refit_year||0)||null,
+                  condition: vessel.condition||'average'
+                })
+                setAiOpinion(resp.ai)
+              }catch(e){ alert(e.message) } finally{ setAiLoading(false) }
+            }}>
+              {aiLoading?'Checking…':'Run AI Double-Check'}
+            </button>
+
+            {aiOpinion && aiOpinion.ok && aiOpinion.ai && (
+              <div className="card">
+                <h3>AI Second Opinion</h3>
+                <p><b>Adjusted Most Likely:</b> ${aiOpinion.ai.adjusted.most_likely.toLocaleString()}</p>
+                <p>Adjusted Range: ${aiOpinion.ai.adjusted.low.toLocaleString()} – ${aiOpinion.ai.adjusted.high.toLocaleString()}</p>
+                <p>Wholesale: ${aiOpinion.ai.adjusted.wholesale.toLocaleString()}</p>
+                <p><b>Confidence:</b> {aiOpinion.ai.confidence}</p>
+                {aiOpinion.ai.flags?.length ? <ul>{aiOpinion.ai.flags.map((f,i)=><li key={i}>{f}</li>)}</ul> : null}
+                <p>{aiOpinion.ai.rationale}</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}"""
+    )
+    p.write_text(s)
+    print('Updated App.jsx with "AI Double-Check" button.')
+else:
+    print("AI button already present.")
+PY
+
+echo "AI Double-Check integration added. Restart backend and refresh the frontend."
