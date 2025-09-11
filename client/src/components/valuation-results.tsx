@@ -15,7 +15,6 @@ interface ValuationData {
     loaFt?: number;
     engineType?: string;
     hours?: number;
-    gyro: boolean;
   };
   estimate: {
     id: string;
@@ -107,15 +106,6 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
                     <span className="font-medium" data-testid="text-vessel-hours">{vessel.hours.toLocaleString()}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Gyro/Stabilizer:</span>
-                  <span 
-                    className={`font-medium ${vessel.gyro ? 'text-green-600' : 'text-muted-foreground'}`}
-                    data-testid="text-vessel-gyro"
-                  >
-                    {vessel.gyro ? 'Yes' : 'No'}
-                  </span>
-                </div>
               </div>
             </div>
             <div>
