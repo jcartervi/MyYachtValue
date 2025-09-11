@@ -1,5 +1,6 @@
 import { Vessel, PREMIUM_BRANDS, PREMIUM_YEAR_THRESHOLD, PREMIUM_HOURS_THRESHOLD } from "@shared/schema";
 import { iybaService } from "./iyba";
+import { AIEstimatorService } from "./ai-estimator";
 
 export interface EstimateResult {
   low: number;
@@ -23,8 +24,21 @@ export interface EstimatorService {
 }
 
 class EstimatorServiceImpl implements EstimatorService {
+  private aiEstimator = new AIEstimatorService();
+
   async generateEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<EstimateResult> {
-    // Rules-based estimation with market adjustments
+    // Try AI estimation first
+    try {
+      const aiResult = await this.aiEstimator.generateEstimate(vessel);
+      return aiResult;
+    } catch (error) {
+      console.warn("AI estimation failed, falling back to rules-based estimation. Reason:", error.message || error);
+      return this.generateRulesBasedEstimate(vessel);
+    }
+  }
+
+  private async generateRulesBasedEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<EstimateResult> {
+    // Fallback rules-based estimation with market adjustments
     let base = 500_000;
 
     // Length adjustment (major factor)
@@ -200,3 +214,6 @@ class EstimatorServiceImpl implements EstimatorService {
 }
 
 export const estimatorService = new EstimatorServiceImpl();
+
+// Also export AI estimator for direct use if needed
+export const aiEstimatorService = new AIEstimatorService();

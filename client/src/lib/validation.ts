@@ -24,7 +24,7 @@ export const leadVesselValidationSchema = z.object({
     const num = parseFloat(val);
     return num >= 20 && num <= 500;
   }, "Length must be between 20 and 500 feet"),
-  fuelType: z.enum(["gas", "diesel", "unknown"]).optional(),
+  fuelType: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["gas", "diesel", "unknown"]).optional()),
   horsepower: z.string().optional().refine((val) => {
     if (!val) return true;
     const num = parseInt(val);

@@ -128,11 +128,18 @@ export default function BoatForm({
   const onSubmit = async (data: FormData) => {
     if (currentStep === 1) {
       // Validate contact information
+      // Debug logging removed for production
+      
       const contactValid = data.email && data.phone && data.brand;
       if (!contactValid) {
+        const missingFields = [];
+        if (!data.email) missingFields.push("email");
+        if (!data.phone) missingFields.push("phone");
+        if (!data.brand) missingFields.push("boat brand");
+        
         toast({
           title: "Required Fields Missing",
-          description: "Please provide your email, phone, and boat brand.",
+          description: `Please provide: ${missingFields.join(", ")}`,
           variant: "destructive",
         });
         return;
