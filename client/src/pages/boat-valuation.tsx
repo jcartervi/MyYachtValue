@@ -169,7 +169,7 @@ export default function BoatValuation() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Sell Your Boat</h3>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Get maximum value with our proven marketing strategy and expert negotiation.
+                  Connect with qualified boat brokers to maximize your boat's value.
                 </p>
                 <Button variant="link" className="text-primary p-0" data-testid="button-sell-boat">
                   Learn More <i className="fas fa-arrow-right ml-1" />
@@ -184,7 +184,7 @@ export default function BoatValuation() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Find Your Next Boat</h3>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Access exclusive listings and off-market opportunities in your price range.
+                  Browse boat listings and market opportunities in your area.
                 </p>
                 <Button variant="link" className="text-primary p-0" data-testid="button-find-boat">
                   Browse Listings <i className="fas fa-arrow-right ml-1" />
@@ -199,7 +199,7 @@ export default function BoatValuation() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Financing Options</h3>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Competitive rates and flexible terms for your boat purchase or refi.
+                  Get connected with marine financing specialists for your next purchase.
                 </p>
                 <Button variant="link" className="text-primary p-0" data-testid="button-financing">
                   Get Rates <i className="fas fa-arrow-right ml-1" />
@@ -271,28 +271,28 @@ export default function BoatValuation() {
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Services</h4>
+              <h4 className="font-semibold mb-4">Features</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary">Boat Sales</a></li>
-                <li><a href="#" className="hover:text-primary">Boat Purchase</a></li>
-                <li><a href="#" className="hover:text-primary">Valuations</a></li>
-                <li><a href="#" className="hover:text-primary">Financing</a></li>
+                <li><a href="#" className="hover:text-primary">AI Valuations</a></li>
+                <li><a href="#" className="hover:text-primary">Market Analysis</a></li>
+                <li><a href="#" className="hover:text-primary">Price Comparables</a></li>
+                <li><a href="#" className="hover:text-primary">Instant Reports</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Contact</h4>
+              <h4 className="font-semibold mb-4">Support</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center">
-                  <i className="fas fa-phone mr-2" />
-                  <a href="tel:+19545410105" className="hover:text-primary">(954) 541-0105</a>
+                  <i className="fas fa-question-circle mr-2" />
+                  <a href="#" className="hover:text-primary">Help Center</a>
                 </div>
                 <div className="flex items-center">
                   <i className="fas fa-envelope mr-2" />
-                  <a href="mailto:james@wavemarinegroup.com" className="hover:text-primary">james@wavemarinegroup.com</a>
+                  <a href="mailto:support@aiboatevaluation.com" className="hover:text-primary">support@aiboatevaluation.com</a>
                 </div>
                 <div className="flex items-center">
-                  <i className="fas fa-map-marker-alt mr-2" />
-                  <span>Fort Lauderdale, FL</span>
+                  <i className="fas fa-shield-alt mr-2" />
+                  <span>Privacy & Security</span>
                 </div>
               </div>
             </div>
