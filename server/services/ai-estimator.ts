@@ -67,8 +67,8 @@ export class AIEstimatorService {
     
     if (brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') || 
         brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram')) {
-      // Luxury yacht brands - much higher values
-      baseValue = length * length * 800; // $800 per sq foot equivalent for luxury yachts
+      // Luxury yacht brands - realistic pricing
+      baseValue = length * length * 700; // $700 per sq foot equivalent for luxury yachts
     } else if (brand.includes('sea ray') || brand.includes('formula') || brand.includes('regal')) {
       // Premium brands
       baseValue = length * 4000;
@@ -77,12 +77,25 @@ export class AIEstimatorService {
       baseValue = length * 3000;
     }
     
-    // Age depreciation (luxury yachts depreciate differently)
+    // Age depreciation with realistic exponential decay
     const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
                         brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
-    const yearFactor = luxuryBrand ? Math.max(0.4, 1 - (age * 0.08)) : Math.max(0.3, 1 - (age * 0.12));
     
-    const expectedValue = Math.round(baseValue * yearFactor);
+    // Use exponential decay for more realistic aging
+    let yearFactor;
+    if (luxuryBrand) {
+      yearFactor = Math.max(0.18, 0.85 * Math.exp(-0.06 * age) + 0.10);
+    } else {
+      yearFactor = Math.max(0.15, 1 - (age * 0.12));
+    }
+    
+    let expectedValue = Math.round(baseValue * yearFactor);
+    
+    // Apply vintage penalty for large old boats
+    if (length >= 70 && age >= 25) {
+      expectedValue = Math.round(expectedValue * 0.9);
+    }
+    
     const minValue = Math.round(expectedValue * 0.7);
     const maxValue = Math.round(expectedValue * 1.3);
 
@@ -98,7 +111,7 @@ export class AIEstimatorService {
     - Condition: ${vessel.condition || 'Average'}
     
     CRITICAL: Expected value range is $${minValue.toLocaleString()} - $${maxValue.toLocaleString()}
-    ${luxuryBrand ? 'This is a LUXURY YACHT - values should be in MILLIONS, not thousands!' : ''}
+    ${luxuryBrand && expectedValue >= 1500000 && age <= 15 ? 'This is a modern LUXURY YACHT - values should be in MILLIONS!' : luxuryBrand ? 'This is a luxury yacht brand, but consider age and depreciation in your pricing.' : ''}
     
     Respond with JSON in this exact format:
     {
@@ -192,10 +205,18 @@ Please respond with a JSON object in exactly this format:
     const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
                         brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
     
-    // Calculate base comparable price ranges
+    // Calculate base comparable price ranges with realistic depreciation
     let basePrice = 0;
     if (luxuryBrand) {
-      basePrice = length * length * 600; // Base for luxury yachts
+      basePrice = length * length * 700; // Base for luxury yachts (same as main valuation)
+      // Apply age depreciation to comparables too
+      const age = Math.max(0, new Date().getFullYear() - year);
+      const yearFactor = Math.max(0.18, 0.85 * Math.exp(-0.06 * age) + 0.10);
+      basePrice = Math.round(basePrice * yearFactor);
+      // Apply vintage penalty if needed
+      if (length >= 70 && age >= 25) {
+        basePrice = Math.round(basePrice * 0.9);
+      }
     } else if (brand.includes('sea ray') || brand.includes('formula')) {
       basePrice = length * 3500;
     } else {
@@ -216,9 +237,9 @@ Please respond with a JSON object in exactly this format:
 
     CRITICAL PRICING GUIDANCE:
     - Expected price range: $${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}
-    ${luxuryBrand ? '- These are LUXURY YACHTS - asking prices should be in MILLIONS!' : ''}
-    ${luxuryBrand ? '- Sunseeker 76ft yachts typically ask $2M-4M' : ''}
-    ${luxuryBrand ? '- Princess, Azimut similar models: $1.5M-3.5M' : ''}
+    ${luxuryBrand && year >= 2010 ? '- Modern luxury yachts typically ask $1.5M+ for this size' : ''}
+    ${luxuryBrand && year < 2000 ? '- Vintage luxury yachts (pre-2000) typically under $1.2M even for premium brands' : ''}
+    ${luxuryBrand && year >= 2000 && year < 2010 ? '- Early 2000s luxury yachts typically $0.8M-1.8M range' : ''}
 
     Generate similar vessels from competing ${luxuryBrand ? 'luxury' : ''} brands like:
     ${luxuryBrand ? 'Sunseeker, Princess, Azimut, Ferretti, Palmer Johnson, Hatteras, Viking, Bertram' : 'Sea Ray, Formula, Regal, Boston Whaler'}
@@ -334,8 +355,6 @@ Please respond with a JSON object containing a "comparables" array in exactly th
     const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
                         brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
     
-    // Use proper luxury yacht pricing for synthetics too
-    const baseValue = luxuryBrand ? length * length * 600 : length * 3000;
     
     return [
       {

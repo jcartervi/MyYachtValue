@@ -1,0 +1,103 @@
+# ============================
+# One-Paste Fix for Unrealistic Numbers in AI Valuations
+# ============================
+
+# --- PATCH: backend/iyba_api.py ---
+cat > backend/iyba_api.py <<'EOF'
+import time, requests
+from typing import List, Dict, Any, Optional
+
+IYBA_KEY = "9d5aa567b7b54f0619611cf3b2415b4661ecfc94"
+IYBA_BROKER_ID = "83692"
+BASE = "https://api.yachtbroker.org".rstrip("/")
+
+_CACHE: dict[str, tuple[float, list]] = {}
+_TTL = 180
+
+def _cache_get(k: str): v = _CACHE.get(k); return v[1] if v and time.time()-v[0]<_TTL else None
+def _cache_put(k: str, data: list): _CACHE[k] = (time.time(), data)
+
+def _qs(params: dict) -> dict:
+    p = {
+        "key": IYBA_KEY, "id": IYBA_BROKER_ID,
+        "gallery": "true", "engines": "true", "generators": "true",
+        "textblocks": "true", "media": "true", "status": "On,Under Contract"
+    }
+    p.update({k: v for k, v in params.items() if v is not None})
+    return p
+
+def _to_int(x):
+    if x is None: return None
+    if isinstance(x, (int, float)): return int(x)
+    return int(''.join(ch for ch in str(x) if ch.isdigit()))
+
+def _normalize_item(it: Dict[str, Any]) -> Dict[str, Any]:
+    year = it.get("year") or it.get("vessel_year")
+    brand = it.get("brand") or it.get("make")
+    model = it.get("model")
+    price_raw = it.get("price") or it.get("ask") or it.get("list_price")
+    currency = (it.get("currency") or "USD").upper()
+    if currency not in {"USD", "US$", "$"}: return {}
+    price = _to_int(price_raw)
+    if not price or price < 20000: return {}
+
+    loa = it.get("length_ft") or it.get("loa") or it.get("length")
+    try: loa = int(round(float(loa))) if loa else None
+    except: loa = None
+    region = it.get("location") or it.get("region") or it.get("state") or it.get("country")
+    url = it.get("url") or it.get("detail_url") or it.get("permalink")
+    title = f"{year or ''} {brand or ''} {model or ''}".strip()
+    return {
+        "title": title, "ask": price, "year": int(year) if year else None,
+        "loa": loa, "region": region, "url": url,
+        "brand": (brand or "").strip(), "model": (model or "").strip(),
+        "engine_type": (it.get("propulsion") or it.get("drive_type") or "").strip().lower(),
+        "fuel_type": (it.get("fuel") or it.get("fuel_type") or "").strip().lower()
+    }
+
+def fetch_full_specs(params: dict) -> List[Dict[str, Any]]:
+    url = f"{BASE}/listings"
+    q = _qs(params)
+    ck = url + "|" + "&".join(f"{k}={q[k]}" for k in sorted(q))
+    cached = _cache_get(ck)
+    if cached is not None: return cached
+
+    try:
+        r = requests.get(url, params=q, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        items = data.get("results") or data.get("data") or (data if isinstance(data, list) else [])
+        norm = [_normalize_item(it) for it in items if isinstance(it, dict)]
+        norm = [n for n in norm if n and n.get("ask") and n.get("year")]
+        prices = sorted(n["ask"] for n in norm)
+        if len(prices) >= 6:
+            p10, p90 = prices[len(prices)//10], prices[int(len(prices)*0.9)-1]
+            norm = [n for n in norm if p10 <= n["ask"] <= p90]
+        _cache_put(ck, norm)
+        return norm
+    except Exception as e:
+        print("IYBA fetch error:", e)
+        return []
+
+def search_comps(brand: Optional[str], model: Optional[str], year: Optional[int], fuel_type: Optional[str], limit: int = 8) -> List[Dict[str, Any]]:
+    raw = fetch_full_specs({})
+    if not raw: return []
+
+    def match(it):
+        if brand and brand.lower() not in (it.get("brand","").lower()): return False
+        if model and model.lower() not in (it.get("model","").lower()): return False
+        if year and it.get("year") and abs(int(it["year"]) - int(year)) > 3: return False
+        if fuel_type:
+            ft = (it.get('fuel_type','') or '').lower()
+            wanted = fuel_type.lower()
+            if ft:
+                if wanted not in ft: return False
+        return True
+
+    filt = [it for it in raw if match(it)]
+    if year:
+        filt.sort(key=lambda x: (abs((x.get("year") or year) - year), abs((x.get("ask") or 0))))
+    return filt[:limit]
+EOF
+
+echo "✅ Patch applied: realistic price handling, outlier trimming, normalization"
