@@ -183,34 +183,54 @@ Please respond with a JSON object in exactly this format:
     comparables: AIComparable[];
     aiStatus: 'ok' | 'rate_limited' | 'error';
   }> {
-    const prompt = `Generate 6-8 realistic comparable boat listings for market analysis.
+    // Calculate realistic price ranges for comparables
+    const length = vessel.loaFt || 35;
+    const year = vessel.year || 2020;
+    const brand = vessel.brand?.toLowerCase() || '';
+    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti');
+    
+    // Calculate base comparable price ranges
+    let basePrice = 0;
+    if (luxuryBrand) {
+      basePrice = length * length * 600; // Base for luxury yachts
+    } else if (brand.includes('sea ray') || brand.includes('formula')) {
+      basePrice = length * 3500;
+    } else {
+      basePrice = length * 2500;
+    }
+    
+    const minPrice = Math.round(basePrice * 0.6);
+    const maxPrice = Math.round(basePrice * 1.4);
 
-    Target boat:
-    - Brand: ${vessel.brand}
+    const prompt = `Generate 6-8 realistic comparable luxury yacht listings for market analysis.
+
+    Target vessel:
+    - Brand: ${vessel.brand} (${luxuryBrand ? 'LUXURY YACHT BRAND' : 'STANDARD BRAND'})
     - Model: ${vessel.model || 'Similar model'}
     - Year: ${vessel.year || 'Similar year range'}
-    - Length: ${vessel.loaFt || 'Similar size'}ft
+    - Length: ${vessel.loaFt || 'Similar size'}ft ${luxuryBrand ? '(LUXURY YACHT)' : ''}
     - Fuel Type: ${vessel.fuelType || 'Similar fuel type'}
 
-    Create realistic comparable listings with:
-    - Similar brands and models (exact matches and close competitors)
-    - Years within ±5 years when possible
-    - Lengths within ±10ft when possible
-    - Realistic asking prices for current market
-    - Geographic diversity (different regions)
-    - Mix of conditions and specifications
+    CRITICAL PRICING GUIDANCE:
+    - Expected price range: $${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}
+    ${luxuryBrand ? '- These are LUXURY YACHTS - asking prices should be in MILLIONS!' : ''}
+    ${luxuryBrand ? '- Sunseeker 76ft yachts typically ask $2M-4M' : ''}
+    ${luxuryBrand ? '- Princess, Azimut similar models: $1.5M-3.5M' : ''}
 
-    Respond with JSON array in this exact format:
+    Generate similar vessels from competing ${luxuryBrand ? 'luxury' : ''} brands like:
+    ${luxuryBrand ? 'Sunseeker, Princess, Azimut, Ferretti, Pershing, Fairline' : 'Sea Ray, Formula, Regal, Boston Whaler'}
+
+    Respond with JSON array in this exact format with REALISTIC PRICES:
     [
       {
-        "title": "YEAR BRAND MODEL",
-        "ask": number,
-        "year": number,
-        "loa": number,
-        "region": "State/Region",
-        "brand": "Brand Name",
-        "model": "Model Name",
-        "fuel_type": "gas|diesel|unknown"
+        "title": "2018 Sunseeker 74 Predator",
+        "ask": ${Math.round(basePrice * 0.9)},
+        "year": 2018,
+        "loa": 74,
+        "region": "Florida",
+        "brand": "Sunseeker",
+        "model": "74 Predator",
+        "fuel_type": "diesel"
       }
     ]`;
 
@@ -262,10 +282,14 @@ Please respond with a JSON object containing a "comparables" array in exactly th
         };
       }
       
-      // Ensure we return valid comparables
+      // Ensure we return valid comparables with realistic pricing
+      const brand = vessel.brand?.toLowerCase() || '';
+      const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti');
+      const fallbackPrice = luxuryBrand ? (vessel.loaFt || 35) * (vessel.loaFt || 35) * 600 : (vessel.loaFt || 35) * 3000;
+      
       const validComparables = comparables.slice(0, 8).map((comp: any) => ({
         title: comp.title || `${comp.year || ''} ${comp.brand || ''} ${comp.model || ''}`.trim(),
-        ask: Math.round(comp.ask || 50000),
+        ask: Math.round(comp.ask || fallbackPrice),
         year: comp.year || vessel.year || 2020,
         loa: comp.loa || vessel.loaFt || 30,
         region: comp.region || 'Various Regions',
@@ -300,8 +324,13 @@ Please respond with a JSON object containing a "comparables" array in exactly th
   }
 
   private generateSyntheticComparables(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): AIComparable[] {
-    // Generate basic synthetic comparables when AI fails
-    const baseValue = (vessel.loaFt || 35) * 3000;
+    // Generate realistic synthetic comparables based on vessel type
+    const length = vessel.loaFt || 35;
+    const brand = vessel.brand?.toLowerCase() || '';
+    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti');
+    
+    // Use proper luxury yacht pricing for synthetics too
+    const baseValue = luxuryBrand ? length * length * 600 : length * 3000;
     
     return [
       {
@@ -312,27 +341,27 @@ Please respond with a JSON object containing a "comparables" array in exactly th
         region: 'Florida',
         brand: vessel.brand,
         model: vessel.model || 'Similar Model',
-        fuel_type: vessel.fuelType || 'gas'
+        fuel_type: vessel.fuelType || 'diesel'
       },
       {
-        title: `${(vessel.year || 2020) - 1} ${vessel.brand} Comparable`,
+        title: `${(vessel.year || 2020) - 1} ${luxuryBrand ? 'Princess' : vessel.brand} Comparable`,
         ask: Math.round(baseValue * (0.85 + Math.random() * 0.15)),
         year: (vessel.year || 2020) - 1,
-        loa: (vessel.loaFt || 35) - 1,
+        loa: (vessel.loaFt || 35) - 2,
         region: 'California',
-        brand: vessel.brand,
-        model: 'Similar Model',
-        fuel_type: vessel.fuelType || 'gas'
+        brand: luxuryBrand ? 'Princess' : vessel.brand,
+        model: luxuryBrand ? 'Motor Yacht' : 'Similar Model',
+        fuel_type: vessel.fuelType || 'diesel'
       },
       {
-        title: `${(vessel.year || 2020) + 1} ${vessel.brand} Sport`,
+        title: `${(vessel.year || 2020) + 1} ${luxuryBrand ? 'Azimut' : vessel.brand} Sport`,
         ask: Math.round(baseValue * (1.05 + Math.random() * 0.1)),
         year: (vessel.year || 2020) + 1,
-        loa: (vessel.loaFt || 35) + 2,
+        loa: (vessel.loaFt || 35) + 1,
         region: 'Texas',
-        brand: vessel.brand,
-        model: 'Sport Model',
-        fuel_type: vessel.fuelType || 'gas'
+        brand: luxuryBrand ? 'Azimut' : vessel.brand,
+        model: luxuryBrand ? 'Flybridge' : 'Sport Model',
+        fuel_type: vessel.fuelType || 'diesel'
       }
     ];
   }
