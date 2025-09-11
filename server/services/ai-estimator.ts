@@ -1,5 +1,5 @@
 import { Vessel } from "@shared/schema";
-import { callOpenAI, AIResponse } from "../utils/ai-utils";
+import { callOpenAI, callOpenAIResponses, AIResponse } from "../utils/ai-utils";
 
 export interface AIComparable {
   title: string;
@@ -78,24 +78,24 @@ export class AIEstimatorService {
       "narrative": "detailed explanation of valuation rationale"
     }`;
 
-    console.log("Making OpenAI API call for boat valuation...");
-    const aiResponse = await callOpenAI(
-      "gpt-4o",
-      [
-        {
-          role: "system",
-          content: "You are an expert marine appraiser. Provide realistic market valuations based on current boat market conditions. Always respond with valid JSON."
-        },
-        {
-          role: "user", 
-          content: prompt
-        }
-      ],
-      {
-        response_format: { type: "json_object" },
-        temperature: 0.3
-      }
-    );
+    console.log("Making OpenAI Responses API call for boat valuation...");
+    
+    // Convert the prompt to the new input format
+    const input = `You are an expert marine appraiser. Provide realistic market valuations based on current boat market conditions. Always respond with valid JSON.
+
+${prompt}
+
+Please respond with a JSON object in exactly this format:
+{
+  "low": number,
+  "mostLikely": number, 
+  "high": number,
+  "wholesale": number,
+  "confidence": "High|Medium|Low",
+  "narrative": "detailed explanation of valuation rationale"
+}`;
+    
+    const aiResponse = await callOpenAIResponses("gpt-5-nano", input);
 
     if (aiResponse.status !== 'ok') {
       console.log(`OpenAI valuation failed with status: ${aiResponse.status}`);
@@ -162,24 +162,30 @@ export class AIEstimatorService {
       }
     ]`;
 
-    console.log("Making OpenAI API call for comparables...");
-    const aiResponse = await callOpenAI(
-      "gpt-4o",
-      [
-        {
-          role: "system",
-          content: "You are a yacht broker creating realistic comparable boat listings. Generate diverse, realistic market data with current pricing. Always respond with valid JSON array."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      {
-        response_format: { type: "json_object" },
-        temperature: 0.4
-      }
-    );
+    console.log("Making OpenAI Responses API call for comparables...");
+    
+    // Convert the prompt to the new input format  
+    const input = `You are a yacht broker creating realistic comparable boat listings. Generate diverse, realistic market data with current pricing. Always respond with valid JSON array.
+
+${prompt}
+
+Please respond with a JSON object containing a "comparables" array in exactly this format:
+{
+  "comparables": [
+    {
+      "title": "boat listing title",
+      "ask": number,
+      "year": number,
+      "loa": number,
+      "region": "location",
+      "brand": "manufacturer",
+      "model": "model name", 
+      "fuel_type": "gas|diesel|unknown"
+    }
+  ]
+}`;
+    
+    const aiResponse = await callOpenAIResponses("gpt-5-nano", input);
 
     if (aiResponse.status !== 'ok') {
       console.log(`OpenAI comparables failed with status: ${aiResponse.status}`);
