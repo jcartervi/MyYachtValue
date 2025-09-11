@@ -91,7 +91,7 @@ export default function BoatValuation() {
                 AI-Powered Tool
               </span>
               <span className="flex items-center">
-                <i className="fas fa-map-marker-alt mr-1" />
+                <i className="fas fa-bolt mr-1" />
                 Instant Analysis
               </span>
             </div>
