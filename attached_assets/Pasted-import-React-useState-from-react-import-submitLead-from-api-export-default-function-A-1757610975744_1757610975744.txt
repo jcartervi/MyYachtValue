@@ -1,0 +1,99 @@
+import React, { useState } from 'react'
+import { submitLead } from './api'
+export default function App() {
+ const [step, setStep] = useState(1)
+ const [loading, setLoading] = useState(false)
+ const [estimate, setEstimate] = useState(null)
+ const [contact, setContact] = useState({
+ name: '', email: '', phone: '', sms_consent: true, city: ''
+ })
+ const [vessel, setVessel] = useState({
+ brand: '', model: '', year: '', engine_type: '', hours: '', refit_year: '', gyro: false
+ })
+ const onSubmit = async () => {
+ if (!contact.email || !contact.phone || !vessel.brand) {
+ alert('Please provide Email, Phone, and Brand.'); return
+ }
+ setLoading(true)
+ try {
+ const form = new FormData()
+ Object.entries(contact).forEach(([k, v]) => form.append(k, v))
+ Object.entries(vessel).forEach(([k, v]) => form.append(k, v))
+ const data = await submitLead(form)
+ setEstimate(data.estimate)
+ setStep(3)
+ } catch (e) { alert(e.message) }
+ finally { setLoading(false) }
+ }
+ return (
+ <div className="container">
+ <h1>What’s your yacht worth today?</h1>
+ <p>Instant AI estimate + recent comps. Free. Private.</p>
+ {step === 1 && (
+ <div className="card">
+ <h3>Step 1 — Contact</h3>
+ <input placeholder="Name (optional)" value={contact.name}
+ onChange={e => setContact({ ...contact, name: e.target.value })} />
+ <input placeholder="Email *" value={contact.email}
+ onChange={e => setContact({ ...contact, email: e.target.value })} />
+ <input placeholder="Phone *" value={contact.phone}
+ onChange={e => setContact({ ...contact, phone: e.target.value })} />
+ <label>
+ <input type="checkbox" checked={contact.sms_consent}
+ onChange={e => setContact({ ...contact, sms_consent: e.target.checked })} />
+ I agree to receive texts/calls from Wave Marine Group (Msg&Data rates may apply).
+ </label>
+ <button onClick={() => setStep(2)}>Continue</button>
+ <p className="small">Licensed Broker • South Florida • #jamescarteryachting</p>
+ </div>
+ )}
+ {step === 2 && (
+ <div className="card">
+ <h3>Step 2 — Vessel</h3>
+ <input placeholder="Brand *" value={vessel.brand}
+ onChange={e => setVessel({ ...vessel, brand: e.target.value })} />
+ <input placeholder="Model" value={vessel.model}
+ onChange={e => setVessel({ ...vessel, model: e.target.value })} />
+ <input placeholder="Year" value={vessel.year}
+ onChange={e => setVessel({ ...vessel, year: e.target.value })} />
+ <select value={vessel.engine_type}
+ onChange={e => setVessel({ ...vessel, engine_type: e.target.value })}>
+ <option value="">Engine type</option>
+ <option value="shaft">Shaft</option>
+ <option value="ips">IPS</option>
+ <option value="outboard">Outboard</option>
+ <option value="other">Other</option>
+ </select>
+ <input placeholder="Engine hours" value={vessel.hours}
+ onChange={e => setVessel({ ...vessel, hours: e.target.value })} />
+ <label>
+ <input type="checkbox" checked={vessel.gyro}
+ onChange={e => setVessel({ ...vessel, gyro: e.target.checked })} />
+ Seakeeper/Gyro
+ </label>
+ <input placeholder="Refit year (optional)" value={vessel.refit_year}
+ onChange={e => setVessel({ ...vessel, refit_year: e.target.value })} />
+ <button disabled={loading} onClick={onSubmit}>
+ {loading ? 'Generating...' : 'Get My Valuation'}
+ </button>
+ </div>
+ )}
+ {step === 3 && estimate && (
+ <div className="card">
+ <h3>Your Estimate</h3>
+ <p><b>Most likely:</b> ${estimate.most_likely.toLocaleString()}</p>
+ <p>Range: ${estimate.low.toLocaleString()} – ${estimate.high.toLocaleString()}</p>
+ <p>Wholesale: ${estimate.wholesale.toLocaleString()}</p>
+ <p>{estimate.narrative}</p>
+ <h4>Top comps</h4>
+ <ul>
+ {estimate.comps.map((c, i) =>
+ <li key={i}>{c.title} — ${c.ask.toLocaleString()} ({c.year}, {c.loa}ft, {c.region})</li>
+ )}
+ </ul>
+ <a href="tel:+19545410105"><button>Call James</button></a>
+ </div>
+ )}
+ </div>
+ )
+}

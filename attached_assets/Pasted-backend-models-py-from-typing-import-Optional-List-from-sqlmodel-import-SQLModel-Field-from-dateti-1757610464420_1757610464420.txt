@@ -1,0 +1,116 @@
+backend/models.py
+from typing import Optional, List
+from sqlmodel import SQLModel, Field
+from datetime import datetime
+
+class Lead(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: Optional[str] = None
+    email: str
+    phone: Optional[str] = None
+    sms_consent: bool = False
+    city: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Vessel(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    lead_id: int
+    brand: str
+    model: Optional[str] = None
+    year: Optional[int] = None
+    loa_ft: Optional[float] = None
+    engine_type: Optional[str] = None   # shaft | ips | outboard | other
+    horsepower: Optional[int] = None
+    hours: Optional[int] = None
+    gyro: bool = False
+    refit_year: Optional[int] = None
+    zip_code: Optional[str] = None
+    region: Optional[str] = "SE_US"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class EstimateRequest(SQLModel):
+    brand: str
+    model: Optional[str] = None
+    year: Optional[int] = None
+    loa_ft: Optional[float] = None
+    engine_type: Optional[str] = None
+    horsepower: Optional[int] = None
+    hours: Optional[int] = None
+    gyro: bool = False
+    refit_year: Optional[int] = None
+    region: Optional[str] = "SE_US"
+
+class EstimateResponse(SQLModel):
+    low: int
+    most_likely: int
+    high: int
+    wholesale: int
+    confidence: str
+    comps: list
+    narrative: str
+
+backend/estimate.py (rules + GPT narrative)
+from .models import EstimateRequest, EstimateResponse
+import math, os
+from openai import OpenAI
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def rules_based_estimate(req: EstimateRequest):
+    # very simple starting point; tune later with real comps
+    base = 500_000
+    if req.loa_ft: base += int((req.loa_ft - 40) * 35_000)
+    if req.year:   base += int((req.year - 2012) * 20_000)
+
+    # engine hours adjustment (diesel rough heuristic)
+    if req.hours is not None:
+        base -= int(max(0, req.hours - 600) / 100 * 7000)
+
+    # gyro premium
+    if req.gyro: base = int(base * 1.05)
+
+    # refit premium (recent)
+    if req.refit_year and req.year:
+        if (req.refit_year - req.year) >= 3:
+            base = int(base * 1.03)
+
+    # region tweak
+    region_factor = {"SE_US": 1.00, "NE_US": 0.98, "MED": 1.04}
+    base = int(base * region_factor.get(req.region, 1.0))
+
+    low, most, high = int(base*0.92), int(base), int(base*1.08)
+    wholesale = int(most * 0.84)
+
+    # fake comps (replace with real data later)
+    comps = [
+        {"title":"2019 Sunseeker 68", "ask": most+100_000, "year": 2019, "loa": 71, "region":"FL"},
+        {"title":"2018 Azimut 66",    "ask": most-50_000,  "year": 2018, "loa": 66, "region":"FL"},
+        {"title":"2020 Princess 65",  "ask": most+180_000, "year": 2020, "loa": 65, "region":"FL"},
+    ]
+
+    # confidence proxy by presence of key inputs
+    score = sum([bool(req.year), bool(req.loa_ft), bool(req.hours), bool(req.brand)])
+    confidence = "Low" if score <= 1 else ("Medium" if score == 2 else "High")
+
+    return low, most, high, wholesale, confidence, comps
+
+def narrative_for_estimate(req: EstimateRequest, low, most, high, comps):
+    prompt = f"""
+    You are a yacht valuation assistant. Explain in 4-6 sentences why the price range
+    {low}-{high} (USD) is reasonable for a {req.year} {req.brand} {req.model} {req.loa_ft}ft
+    with {req.engine_type} engines and ~{req.hours} hours in {req.region}. Reference stabilizer/gyro
+    and refit if provided. Make it concise and professional. Avoid disclaimers.
+    """
+    resp = client.responses.create(
+        model="gpt-5.1-mini",
+        input=prompt
+    )
+    return resp.output_text
+
+def estimate(req: EstimateRequest) -> EstimateResponse:
+    low, most, high, wholesale, confidence, comps = rules_based_estimate(req)
+    narrative = narrative_for_estimate(req, low, most, high, comps)
+    return EstimateResponse(
+        low=low, most_likely=most, high=high,
+        wholesale=wholesale, confidence=confidence,
+        comps=comps, narrative=narrative
+    )
