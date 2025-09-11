@@ -34,7 +34,7 @@ interface FormData {
   region: string;
 }
 
-interface YachtFormProps {
+interface BoatFormProps {
   currentStep: number;
   onStepChange: (step: number) => void;
   onComplete: (data: any) => void;
@@ -43,14 +43,14 @@ interface YachtFormProps {
   utmParams: Record<string, string>;
 }
 
-export default function YachtForm({ 
+export default function BoatForm({ 
   currentStep, 
   onStepChange, 
   onComplete, 
   onLoadingChange, 
   isLoading,
   utmParams 
-}: YachtFormProps) {
+}: BoatFormProps) {
   const [turnstileToken, setTurnstileToken] = useState<string>("");
   const { toast } = useToast();
   
@@ -77,7 +77,7 @@ export default function YachtForm({
   });
 
   // Auto-save form data to localStorage
-  const { saveFormData, loadFormData, clearFormData } = useFormStorage("yacht-valuation-form");
+  const { saveFormData, loadFormData, clearFormData } = useFormStorage("boat-valuation-form");
   
   useEffect(() => {
     const savedData = loadFormData();
@@ -128,7 +128,7 @@ export default function YachtForm({
       if (!contactValid) {
         toast({
           title: "Required Fields Missing",
-          description: "Please provide your email, phone, and yacht brand.",
+          description: "Please provide your email, phone, and boat brand.",
           variant: "destructive",
         });
         return;
@@ -313,7 +313,7 @@ export default function YachtForm({
                   name="brand"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Yacht Brand *</FormLabel>
+                      <FormLabel>Boat Brand *</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="Sunseeker, Azimut, Princess, etc." 
@@ -380,7 +380,7 @@ export default function YachtForm({
                         <FormLabel>Model</FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="68 Sport Yacht" 
+                            placeholder="68 Sport Boat" 
                             {...field} 
                             data-testid="input-model"
                           />
@@ -568,7 +568,7 @@ export default function YachtForm({
                           Seakeeper/Gyro Stabilization
                         </FormLabel>
                         <FormDescription>
-                          Does your yacht have gyroscopic stabilization?
+                          Does your boat have gyroscopic stabilization?
                         </FormDescription>
                       </div>
                     </FormItem>

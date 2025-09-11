@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import YachtForm from "@/components/yacht-form";
+import BoatForm from "@/components/boat-form";
 import ValuationResults from "@/components/valuation-results";
 import ProgressIndicator from "@/components/progress-indicator";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +42,7 @@ interface ValuationData {
   };
 }
 
-export default function YachtValuation() {
+export default function BoatValuation() {
   const [currentStep, setCurrentStep] = useState(1);
   const [valuationData, setValuationData] = useState<ValuationData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +55,7 @@ export default function YachtValuation() {
     
     toast({
       title: "Valuation Complete!",
-      description: "Your yacht valuation has been generated successfully.",
+      description: "Your boat valuation has been generated successfully.",
     });
   };
 
@@ -112,7 +112,7 @@ export default function YachtValuation() {
         />
         <div className="max-w-4xl mx-auto px-4 relative z-10">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">What's Your Yacht Worth Today?</h1>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">What's Your Boat Worth Today?</h1>
             <p className="text-xl md:text-2xl mb-8 text-blue-100">Instant AI-powered valuation with recent market comparables</p>
             <div className="flex flex-wrap justify-center gap-6 text-sm">
               <div className="flex items-center">
@@ -141,7 +141,7 @@ export default function YachtValuation() {
 
         {/* Form or Results */}
         {currentStep < 3 ? (
-          <YachtForm
+          <BoatForm
             currentStep={currentStep}
             onStepChange={setCurrentStep}
             onComplete={handleValuationComplete}
@@ -167,11 +167,11 @@ export default function YachtValuation() {
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <i className="fas fa-handshake text-primary text-xl" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Sell Your Yacht</h3>
+                <h3 className="text-lg font-semibold mb-2">Sell Your Boat</h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   Get maximum value with our proven marketing strategy and expert negotiation.
                 </p>
-                <Button variant="link" className="text-primary p-0" data-testid="button-sell-yacht">
+                <Button variant="link" className="text-primary p-0" data-testid="button-sell-boat">
                   Learn More <i className="fas fa-arrow-right ml-1" />
                 </Button>
               </CardContent>
@@ -182,11 +182,11 @@ export default function YachtValuation() {
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <i className="fas fa-search text-green-600 text-xl" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Find Your Next Yacht</h3>
+                <h3 className="text-lg font-semibold mb-2">Find Your Next Boat</h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   Access exclusive listings and off-market opportunities in your price range.
                 </p>
-                <Button variant="link" className="text-primary p-0" data-testid="button-find-yacht">
+                <Button variant="link" className="text-primary p-0" data-testid="button-find-boat">
                   Browse Listings <i className="fas fa-arrow-right ml-1" />
                 </Button>
               </CardContent>
@@ -199,7 +199,7 @@ export default function YachtValuation() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Financing Options</h3>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Competitive rates and flexible terms for your yacht purchase or refi.
+                  Competitive rates and flexible terms for your boat purchase or refi.
                 </p>
                 <Button variant="link" className="text-primary p-0" data-testid="button-financing">
                   Get Rates <i className="fas fa-arrow-right ml-1" />
@@ -215,12 +215,12 @@ export default function YachtValuation() {
             <CardContent className="p-8">
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold mb-2">Why Trust Wave Marine Group?</h2>
-                <p className="text-muted-foreground">Your yacht valuation is backed by years of market expertise</p>
+                <p className="text-muted-foreground">Your boat valuation is backed by years of market expertise</p>
               </div>
               <div className="grid md:grid-cols-4 gap-8 text-center">
                 <div>
                   <div className="text-3xl font-bold text-primary mb-2">500+</div>
-                  <div className="text-sm text-muted-foreground">Yachts Sold</div>
+                  <div className="text-sm text-muted-foreground">Boats Sold</div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-primary mb-2">$2.1B</div>
@@ -255,7 +255,7 @@ export default function YachtValuation() {
                 </div>
               </div>
               <p className="text-muted-foreground text-sm mb-4">
-                South Florida's premier yacht brokerage, specializing in luxury motor yachts 
+                South Florida's premier boat brokerage, specializing in luxury motor boats 
                 and sport fishers. Licensed, bonded, and committed to exceptional service.
               </p>
               <div className="flex space-x-4">
@@ -273,8 +273,8 @@ export default function YachtValuation() {
             <div>
               <h4 className="font-semibold mb-4">Services</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary">Yacht Sales</a></li>
-                <li><a href="#" className="hover:text-primary">Yacht Purchase</a></li>
+                <li><a href="#" className="hover:text-primary">Boat Sales</a></li>
+                <li><a href="#" className="hover:text-primary">Boat Purchase</a></li>
                 <li><a href="#" className="hover:text-primary">Valuations</a></li>
                 <li><a href="#" className="hover:text-primary">Financing</a></li>
               </ul>
@@ -298,7 +298,7 @@ export default function YachtValuation() {
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 Wave Marine Group. All rights reserved. • Licensed Yacht Broker • TCPA Compliant</p>
+            <p>&copy; 2024 Wave Marine Group. All rights reserved. • Licensed Boat Broker • TCPA Compliant</p>
           </div>
         </div>
       </footer>

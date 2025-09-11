@@ -118,7 +118,7 @@ class EstimatorServiceImpl implements EstimatorService {
     const hours = vessel.hours !== null && vessel.hours !== undefined ? vessel.hours : "unknown";
     const region = vessel.region || "SE_US";
 
-    let narrative = `This estimate reflects recent market conditions for comparable yachts with similar specifications in the ${region} region. `;
+    let narrative = `This estimate reflects recent market conditions for comparable boats with similar specifications in the ${region} region. `;
     
     narrative += `The ${year} ${brand} ${model} ${length}with ${engineType} engines and approximately ${hours} hours represents `;
     
@@ -156,21 +156,21 @@ class EstimatorServiceImpl implements EstimatorService {
 
     return [
       {
-        title: `${baseYear} ${vessel.brand} ${vessel.model || "Motor Yacht"}`,
+        title: `${baseYear} ${vessel.brand} ${vessel.model || "Motor Boat"}`,
         ask: Math.floor(mostLikely * (0.95 + Math.random() * 0.1)),
         year: baseYear,
         loa: Math.floor(baseLoa),
         region,
       },
       {
-        title: `${baseYear - 1} Similar ${Math.floor(baseLoa)}ft Motor Yacht`,
+        title: `${baseYear - 1} Similar ${Math.floor(baseLoa)}ft Motor Boat`,
         ask: Math.floor(mostLikely * (0.85 + Math.random() * 0.15)),
         year: baseYear - 1,
         loa: Math.floor(baseLoa - 2),
         region,
       },
       {
-        title: `${baseYear + 1} Comparable ${Math.floor(baseLoa)}ft Sport Yacht`,
+        title: `${baseYear + 1} Comparable ${Math.floor(baseLoa)}ft Sport Boat`,
         ask: Math.floor(mostLikely * (1.05 + Math.random() * 0.1)),
         year: baseYear + 1,
         loa: Math.floor(baseLoa + 1),

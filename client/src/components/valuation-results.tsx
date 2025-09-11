@@ -53,7 +53,7 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold mb-2" data-testid="text-valuation-title">
-                Your Yacht Valuation
+                Your Boat Valuation
               </h2>
               <p className="text-blue-100">Based on current market conditions and comparable sales</p>
             </div>
