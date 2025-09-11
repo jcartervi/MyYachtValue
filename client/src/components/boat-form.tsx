@@ -340,7 +340,7 @@ export default function BoatForm({
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>
-                          I agree to receive texts/calls from Wave Marine Group
+                          I agree to receive texts/calls from AI Boat Evaluation
                         </FormLabel>
                         <FormDescription>
                           Message & data rates may apply. You can opt out at any time.
@@ -359,7 +359,7 @@ export default function BoatForm({
                 </Button>
 
                 <p className="text-center text-sm text-muted-foreground">
-                  Licensed Broker • South Florida • #jamescarteryachting
+                  AI Powered Tool • Advanced Analytics • Instant Results
                 </p>
               </CardContent>
             </Card>

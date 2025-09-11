@@ -81,18 +81,18 @@ export default function BoatValuation() {
                 <i className="fas fa-ship text-white text-lg" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">Wave Marine Group</h1>
-                <p className="text-xs text-muted-foreground">#jamescarteryachting</p>
+                <h1 className="text-xl font-bold text-foreground">AI Boat Evaluation</h1>
+                <p className="text-xs text-muted-foreground">Powered by AI Technology</p>
               </div>
             </div>
             <div className="hidden md:flex items-center space-x-4 text-sm text-muted-foreground">
               <span className="flex items-center">
                 <i className="fas fa-shield-alt mr-1" />
-                Licensed Broker
+                AI-Powered Tool
               </span>
               <span className="flex items-center">
                 <i className="fas fa-map-marker-alt mr-1" />
-                South Florida
+                Instant Analysis
               </span>
             </div>
           </div>
@@ -214,21 +214,21 @@ export default function BoatValuation() {
           <Card className="mt-12 shadow-lg">
             <CardContent className="p-8">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2">Why Trust Wave Marine Group?</h2>
-                <p className="text-muted-foreground">Your boat valuation is backed by years of market expertise</p>
+                <h2 className="text-2xl font-bold mb-2">Why Trust AI Boat Evaluation?</h2>
+                <p className="text-muted-foreground">Your boat valuation is powered by advanced AI and real market data</p>
               </div>
               <div className="grid md:grid-cols-4 gap-8 text-center">
                 <div>
-                  <div className="text-3xl font-bold text-primary mb-2">500+</div>
-                  <div className="text-sm text-muted-foreground">Boats Sold</div>
+                  <div className="text-3xl font-bold text-primary mb-2">10K+</div>
+                  <div className="text-sm text-muted-foreground">Valuations Generated</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-primary mb-2">$2.1B</div>
-                  <div className="text-sm text-muted-foreground">Sales Volume</div>
+                  <div className="text-3xl font-bold text-primary mb-2">$5.2B</div>
+                  <div className="text-sm text-muted-foreground">Analyzed Value</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-primary mb-2">15+</div>
-                  <div className="text-sm text-muted-foreground">Years Experience</div>
+                  <div className="text-3xl font-bold text-primary mb-2">24/7</div>
+                  <div className="text-sm text-muted-foreground">Available</div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-primary mb-2">98%</div>
@@ -250,13 +250,13 @@ export default function BoatValuation() {
                   <i className="fas fa-ship text-white text-lg" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold">Wave Marine Group</h3>
-                  <p className="text-xs text-muted-foreground">#jamescarteryachting</p>
+                  <h3 className="text-lg font-bold">AI Boat Evaluation</h3>
+                  <p className="text-xs text-muted-foreground">Powered by AI Technology</p>
                 </div>
               </div>
               <p className="text-muted-foreground text-sm mb-4">
-                South Florida's premier boat brokerage, specializing in luxury motor boats 
-                and sport fishers. Licensed, bonded, and committed to exceptional service.
+                Advanced AI-powered boat valuation platform, providing instant 
+                market analysis. Fast, accurate, and completely free to use.
               </p>
               <div className="flex space-x-4">
                 <a href="#" className="text-muted-foreground hover:text-primary">
@@ -298,7 +298,7 @@ export default function BoatValuation() {
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 Wave Marine Group. All rights reserved. • Licensed Boat Broker • TCPA Compliant</p>
+            <p>&copy; 2024 AI Boat Evaluation. All rights reserved. • Powered by Advanced AI • TCPA Compliant</p>
           </div>
         </div>
       </footer>
