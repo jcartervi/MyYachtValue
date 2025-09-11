@@ -6,7 +6,7 @@ import ValuationResults from "@/components/valuation-results";
 import ProgressIndicator from "@/components/progress-indicator";
 import { useToast } from "@/hooks/use-toast";
 import { useUTMTracking } from "@/hooks/use-utm-tracking";
-import logoImage from "@assets/generated_images/AI_boat_valuation_logo_f1e2ad15.png";
+import AIBoatLogo from "@/components/AIBoatLogo";
 
 interface ValuationData {
   lead: {
@@ -78,8 +78,8 @@ export default function BoatValuation() {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm border">
-                <img src={logoImage} alt="AI Boat Valuation" className="w-8 h-8 object-contain" />
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center ring-1 ring-border bg-transparent">
+                <AIBoatLogo size={32} className="text-primary" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">AI Boat Valuation</h1>
@@ -247,8 +247,8 @@ export default function BoatValuation() {
           <div className="grid md:grid-cols-4 gap-8">
             <div className="md:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm border">
-                  <img src={logoImage} alt="AI Boat Valuation" className="w-8 h-8 object-contain" />
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center ring-1 ring-border bg-transparent">
+                  <AIBoatLogo size={32} className="text-primary" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">AI Boat Valuation</h3>
