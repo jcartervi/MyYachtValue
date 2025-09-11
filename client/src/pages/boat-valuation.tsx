@@ -87,7 +87,7 @@ export default function BoatValuation() {
             </div>
             <div className="hidden md:flex items-center space-x-4 text-sm text-muted-foreground">
               <span className="flex items-center">
-                <i className="fas fa-shield-alt mr-1" />
+                <i className="fas fa-brain mr-1" />
                 AI-Powered Tool
               </span>
               <span className="flex items-center">
