@@ -237,7 +237,7 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
                 Your detailed valuation report for the {vessel.year} {vessel.brand} {vessel.model}{" "}
                 has been generated successfully. A comprehensive analysis including market trends 
                 and selling strategies will be sent to {" "}
-                <span className="font-semibold" data-testid="text-lead-email">{lead.email}</span>{" "}
+                <span className="font-semibold" data-testid="text-lead-email">james.jr@wavemarinegroup.com</span>{" "}
                 upon request.
               </p>
               <p className="text-sm text-green-600 mt-2">
