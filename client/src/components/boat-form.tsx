@@ -104,9 +104,15 @@ export default function BoatForm({
 
   // Initialize Turnstile when component mounts
   useEffect(() => {
+    // Skip Turnstile if not configured (development mode)
+    if (!import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY) {
+      setTurnstileToken("dev-bypass-token");
+      return;
+    }
+    
     if (currentStep === 2 && typeof window !== "undefined" && (window as any).turnstile) {
       (window as any).turnstile.render("#turnstile-widget", {
-        sitekey: import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || "0x4AAAAAAAdeWP1SZJhwHKOO",
+        sitekey: import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY,
         callback: (token: string) => {
           setTurnstileToken(token);
         },
@@ -576,13 +582,25 @@ export default function BoatForm({
                 />
 
                 {/* Cloudflare Turnstile */}
-                <div className="space-y-2">
-                  <Label>Security Verification</Label>
-                  <div id="turnstile-widget" className="flex justify-center" />
-                  <p className="text-sm text-muted-foreground text-center">
-                    Please complete the security verification to continue
-                  </p>
-                </div>
+                {import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ? (
+                  <div className="space-y-2">
+                    <Label>Security Verification</Label>
+                    <div id="turnstile-widget" className="flex justify-center" />
+                    <p className="text-sm text-muted-foreground text-center">
+                      Please complete the security verification to continue
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Security Verification</Label>
+                    <div className="flex justify-center p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center text-green-700">
+                        <i className="fas fa-check-circle mr-2" />
+                        Security verification bypassed (development mode)
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-4">
                   <Button 
