@@ -354,6 +354,24 @@ Please respond with a JSON object containing a "comparables" array in exactly th
     const brand = vessel.brand?.toLowerCase() || '';
     const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
                         brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
+
+    // Base price calculation mirrors main valuation/comparables
+    let baseValue = 0;
+    const year = vessel.year || 2020;
+    const currentYear = new Date().getFullYear();
+    const age = Math.max(0, currentYear - year);
+    if (luxuryBrand) {
+      baseValue = length * length * 700; // luxury brands baseline
+      const yearFactor = Math.max(0.18, 0.85 * Math.exp(-0.06 * age) + 0.10);
+      baseValue = Math.round(baseValue * yearFactor);
+      if (length >= 70 && age >= 25) {
+        baseValue = Math.round(baseValue * 0.9); // vintage penalty
+      }
+    } else if (brand.includes('sea ray') || brand.includes('formula')) {
+      baseValue = length * 3500;
+    } else {
+      baseValue = length * 2500;
+    }
     
     
     return [
