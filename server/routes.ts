@@ -48,11 +48,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // IYBA smoke test endpoint
   app.get("/api/iyba-smoke", async (req: Request, res: Response) => {
     try {
-      const { iybaService } = await import("./services/iyba");
-      const data = await iybaService.searchComparableBoats("Sunseeker", undefined, 2019, "shaft", 5);
+      const { iybaService } = await import("./services/iyba-api");
+      const data = await iybaService.smokeTest();
       res.json({ 
-        count: data.length, 
-        sample: data.slice(0, 3),
+        ...data,
         hasApiKey: !!process.env.IYBA_KEY,
         hasBrokerId: !!process.env.IYBA_BROKER_ID
       });
@@ -60,6 +59,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("IYBA smoke test error:", error);
       res.status(500).json({ 
         error: "IYBA test failed",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // IYBA test endpoint for Scout 22
+  app.get("/api/iyba-test-scout", async (req: Request, res: Response) => {
+    try {
+      const { iybaService } = await import("./services/iyba-api");
+      const comparables = await iybaService.searchComparablesForVessel(
+        "Scout",
+        "22", 
+        2016,
+        22,
+        "gas"
+      );
+      const marketSummary = await iybaService.getMarketSummary(comparables);
+      
+      res.json({ 
+        vessel: "2016 Scout 22",
+        comparablesFound: comparables.length,
+        comparables: comparables.slice(0, 5), // Show first 5
+        marketSummary,
+        hasApiKey: !!process.env.IYBA_KEY,
+        hasBrokerId: !!process.env.IYBA_BROKER_ID
+      });
+    } catch (error) {
+      console.error("IYBA Scout test error:", error);
+      res.status(500).json({ 
+        error: "IYBA Scout test failed",
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }

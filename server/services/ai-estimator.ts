@@ -1,5 +1,6 @@
 import { Vessel } from "@shared/schema";
 import { callOpenAI, callOpenAIResponses, AIResponse } from "../utils/ai-utils";
+import { iybaService, IYBAComparable } from "./iyba-api";
 
 export interface AIComparable {
   title: string;
@@ -12,6 +13,14 @@ export interface AIComparable {
   fuel_type?: string;
 }
 
+// Type to track data source
+export interface MarketDataSummary {
+  realComparables: number;
+  syntheticComparables: number;
+  iybaStatus: 'success' | 'partial' | 'failed';
+  dataSource: 'iyba' | 'synthetic' | 'mixed';
+}
+
 export interface AIEstimate {
   low: number;
   mostLikely: number;
@@ -22,31 +31,122 @@ export interface AIEstimate {
   comps: AIComparable[];
   isPremiumLead: boolean;
   aiStatus: 'ok' | 'rate_limited' | 'error';
+  marketData?: MarketDataSummary;
 }
 
 export class AIEstimatorService {
   async generateEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<AIEstimate> {
-    // Try AI estimation with proper error handling
-    const valuationResult = await this.generateAIValuation(vessel);
+    // Get real market data from IYBA first
+    const marketDataResult = await this.getMarketData(vessel);
+    
+    // Try AI estimation with real market data
+    const valuationResult = await this.generateAIValuation(vessel, marketDataResult);
     
     if (valuationResult.aiStatus === 'ok') {
-      // AI worked, get comparables too
-      const comparablesResult = await this.generateAIComparables(vessel);
-      
       return {
         ...valuationResult,
-        comps: comparablesResult.comparables,
+        comps: marketDataResult.comparables,
         isPremiumLead: this.determinePremiumStatus(vessel, valuationResult),
-        aiStatus: 'ok'
+        aiStatus: 'ok',
+        marketData: marketDataResult.summary
       };
     } else {
       // AI failed, use fallback but preserve the status
       console.warn(`AI estimation failed with status: ${valuationResult.aiStatus}`);
-      return this.generateFallbackEstimate(vessel, valuationResult.aiStatus);
+      return this.generateFallbackEstimate(vessel, valuationResult.aiStatus, marketDataResult);
     }
   }
 
-  private async generateAIValuation(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<{
+  private async getMarketData(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<{
+    comparables: AIComparable[];
+    summary: MarketDataSummary;
+  }> {
+    console.log(`Getting market data for ${vessel.year || ''} ${vessel.brand} ${vessel.model || ''} (${vessel.loaFt || '?'}ft)`);
+    
+    try {
+      // Get real comparable sales from IYBA
+      const iybaComparables = await iybaService.searchComparablesForVessel(
+        vessel.brand,
+        vessel.model || undefined,
+        vessel.year || undefined,
+        vessel.loaFt || undefined,
+        vessel.fuelType || undefined
+      );
+      
+      console.log(`IYBA returned ${iybaComparables.length} real comparables`);
+      
+      // Convert IYBA comparables to AIComparable format
+      const realComparables: AIComparable[] = iybaComparables.map((comp: IYBAComparable) => ({
+        title: comp.title,
+        ask: comp.ask,
+        year: comp.year || 0,
+        loa: comp.loa || 0,
+        region: comp.region,
+        brand: comp.brand,
+        model: comp.model,
+        fuel_type: comp.engine_type || 'unknown'
+      }));
+      
+      let allComparables = realComparables;
+      let summary: MarketDataSummary;
+      
+      if (realComparables.length >= 3) {
+        // We have enough real data
+        summary = {
+          realComparables: realComparables.length,
+          syntheticComparables: 0,
+          iybaStatus: 'success',
+          dataSource: 'iyba'
+        };
+      } else if (realComparables.length > 0) {
+        // Mix real data with synthetic to get enough comparables
+        const syntheticComparables = this.generateSyntheticComparables(vessel);
+        allComparables = [...realComparables, ...syntheticComparables.slice(0, 8 - realComparables.length)];
+        
+        summary = {
+          realComparables: realComparables.length,
+          syntheticComparables: 8 - realComparables.length,
+          iybaStatus: 'partial',
+          dataSource: 'mixed'
+        };
+      } else {
+        // No real data available, use synthetic
+        allComparables = this.generateSyntheticComparables(vessel);
+        
+        summary = {
+          realComparables: 0,
+          syntheticComparables: allComparables.length,
+          iybaStatus: 'failed',
+          dataSource: 'synthetic'
+        };
+      }
+      
+      return {
+        comparables: allComparables,
+        summary
+      };
+    } catch (error) {
+      console.error('Error fetching IYBA market data:', error);
+      
+      // Fallback to synthetic data
+      const syntheticComparables = this.generateSyntheticComparables(vessel);
+      
+      return {
+        comparables: syntheticComparables,
+        summary: {
+          realComparables: 0,
+          syntheticComparables: syntheticComparables.length,
+          iybaStatus: 'failed',
+          dataSource: 'synthetic'
+        }
+      };
+    }
+  }
+
+  private async generateAIValuation(
+    vessel: Omit<Vessel, "id" | "leadId" | "createdAt">,
+    marketData: { comparables: AIComparable[]; summary: MarketDataSummary }
+  ): Promise<{
     low: number;
     mostLikely: number;
     high: number;
@@ -55,65 +155,99 @@ export class AIEstimatorService {
     narrative: string;
     aiStatus: 'ok' | 'rate_limited' | 'error';
   }> {
-    // Calculate expected value range based on vessel type
-    const length = vessel.loaFt || 35;
-    const year = vessel.year || 2020;
-    const currentYear = new Date().getFullYear();
-    const age = Math.max(0, currentYear - year);
+    // Extract pricing from real market data if available
+    const realComparables = marketData.comparables.filter(c => c.ask > 0);
     
-    // Enhanced base value calculation for different vessel types
-    let baseValue = 0;
-    const brand = vessel.brand?.toLowerCase() || '';
+    let marketInsights = '';
+    let expectedValue = 0;
+    let minValue = 0;
+    let maxValue = 0;
     
-    if (brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') || 
-        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram')) {
-      // Luxury yacht brands - realistic pricing
-      baseValue = length * length * 700; // $700 per sq foot equivalent for luxury yachts
-    } else if (brand.includes('sea ray') || brand.includes('formula') || brand.includes('regal') || 
-               brand.includes('scout') || brand.includes('boston whaler') || brand.includes('grady-white') || 
-               brand.includes('pursuit') || brand.includes('jupiter') || brand.includes('yellowfin')) {
-      // Premium brands (including premium fishing boats)
-      baseValue = length * 5000;
+    if (realComparables.length >= 2) {
+      // Use real market data for pricing guidance
+      const prices = realComparables.map(c => c.ask).sort((a, b) => a - b);
+      const avgPrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+      const medianPrice = prices.length % 2 === 0
+        ? (prices[prices.length / 2 - 1] + prices[prices.length / 2]) / 2
+        : prices[Math.floor(prices.length / 2)];
+      
+      expectedValue = Math.round(medianPrice);
+      minValue = Math.round(Math.min(...prices) * 0.9);
+      maxValue = Math.round(Math.max(...prices) * 1.1);
+      
+      marketInsights = `\n\nREAL MARKET DATA ANALYSIS:\n`;
+      marketInsights += `- Found ${realComparables.length} comparable sales in IYBA database\n`;
+      marketInsights += `- Price range: $${Math.min(...prices).toLocaleString()} - $${Math.max(...prices).toLocaleString()}\n`;
+      marketInsights += `- Average asking price: $${Math.round(avgPrice).toLocaleString()}\n`;
+      marketInsights += `- Median asking price: $${Math.round(medianPrice).toLocaleString()}\n`;
+      
+      if (marketData.summary.dataSource === 'iyba') {
+        marketInsights += `- Data confidence: HIGH (All real IYBA data)\n`;
+      } else if (marketData.summary.dataSource === 'mixed') {
+        marketInsights += `- Data confidence: MEDIUM (${marketData.summary.realComparables} real + ${marketData.summary.syntheticComparables} synthetic)\n`;
+      }
     } else {
-      // Standard boats
-      baseValue = length * 3000;
+      // Fallback to traditional calculation when no real data available
+      const length = vessel.loaFt || 35;
+      const year = vessel.year || 2020;
+      const currentYear = new Date().getFullYear();
+      const age = Math.max(0, currentYear - year);
+      const brand = vessel.brand?.toLowerCase() || '';
+      
+      let baseValue = 0;
+      if (brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') || 
+          brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram')) {
+        baseValue = length * length * 700;
+      } else if (brand.includes('sea ray') || brand.includes('formula') || brand.includes('regal') || 
+                 brand.includes('scout') || brand.includes('boston whaler') || brand.includes('grady-white') || 
+                 brand.includes('pursuit') || brand.includes('jupiter') || brand.includes('yellowfin')) {
+        baseValue = length * 5000;
+      } else {
+        baseValue = length * 3000;
+      }
+      
+      const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
+                          brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
+      
+      let yearFactor;
+      if (luxuryBrand) {
+        yearFactor = Math.max(0.18, 0.85 * Math.exp(-0.06 * age) + 0.10);
+      } else {
+        yearFactor = Math.max(0.15, 1 - (age * 0.12));
+      }
+      
+      expectedValue = Math.round(baseValue * yearFactor);
+      
+      if (length >= 70 && age >= 25) {
+        expectedValue = Math.round(expectedValue * 0.9);
+      }
+      
+      minValue = Math.round(expectedValue * 0.7);
+      maxValue = Math.round(expectedValue * 1.3);
+      
+      marketInsights = '\n\nNOTE: Using algorithmic pricing due to limited real market data availability.\n';
     }
-    
-    // Age depreciation with realistic exponential decay
-    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
-                        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
-    
-    // Use exponential decay for more realistic aging
-    let yearFactor;
-    if (luxuryBrand) {
-      yearFactor = Math.max(0.18, 0.85 * Math.exp(-0.06 * age) + 0.10);
-    } else {
-      yearFactor = Math.max(0.15, 1 - (age * 0.12));
-    }
-    
-    let expectedValue = Math.round(baseValue * yearFactor);
-    
-    // Apply vintage penalty for large old boats
-    if (length >= 70 && age >= 25) {
-      expectedValue = Math.round(expectedValue * 0.9);
-    }
-    
-    const minValue = Math.round(expectedValue * 0.7);
-    const maxValue = Math.round(expectedValue * 1.3);
 
-    const prompt = `You are a professional marine surveyor and yacht broker with 20+ years of experience specializing in luxury vessels. 
+    const dataSource = marketData.summary.dataSource === 'iyba' ? 'IYBA real market data' :
+                      marketData.summary.dataSource === 'mixed' ? 'IYBA real market data supplemented with market analysis' :
+                      'algorithmic market analysis';
+    
+    const prompt = `You are a professional marine surveyor and yacht broker with 20+ years of experience specializing in vessel valuations.
     
     Provide a detailed valuation for this vessel:
-    - Brand: ${vessel.brand} (${luxuryBrand ? 'LUXURY BRAND' : 'STANDARD BRAND'})
+    - Brand: ${vessel.brand}
     - Model: ${vessel.model || 'Unknown'}
     - Year: ${vessel.year || 'Unknown'}
-    - Length: ${vessel.loaFt || 'Unknown'}ft ${luxuryBrand ? '(LARGE LUXURY YACHT)' : ''}
+    - Length: ${vessel.loaFt || 'Unknown'}ft
     - Fuel Type: ${vessel.fuelType || 'Unknown'}
     - Hours: ${vessel.hours || 'Unknown'}
     - Condition: ${vessel.condition || 'Average'}
     
-    CRITICAL: Expected value range is $${minValue.toLocaleString()} - $${maxValue.toLocaleString()}
-    ${luxuryBrand && expectedValue >= 1500000 && age <= 15 ? 'This is a modern LUXURY YACHT - values should be in MILLIONS!' : luxuryBrand ? 'This is a luxury yacht brand, but consider age and depreciation in your pricing.' : ''}
+    MARKET DATA ANALYSIS: ${dataSource}
+    ${marketInsights}
+    
+    Based on this analysis, expected value range is $${minValue.toLocaleString()} - $${maxValue.toLocaleString()}
+    Most likely value: $${expectedValue.toLocaleString()}
     
     Respond with JSON in this exact format:
     {
@@ -121,8 +255,8 @@ export class AIEstimatorService {
       "mostLikely": ${expectedValue},
       "high": ${maxValue},
       "wholesale": ${Math.round(expectedValue * 0.8)},
-      "confidence": "High",
-      "narrative": "Professional valuation based on brand prestige, market conditions, and vessel specifications"
+      "confidence": "${marketData.summary.dataSource === 'iyba' ? 'High' : marketData.summary.dataSource === 'mixed' ? 'Medium' : 'Medium'}",
+      "narrative": "Professional valuation based on ${dataSource} and vessel specifications"
     }`;
 
     console.log("Making OpenAI API call for boat valuation with new key...");
@@ -196,144 +330,8 @@ Please respond with a JSON object in exactly this format:
     }
   }
 
-  private async generateAIComparables(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<{
-    comparables: AIComparable[];
-    aiStatus: 'ok' | 'rate_limited' | 'error';
-  }> {
-    // Calculate realistic price ranges for comparables
-    const length = vessel.loaFt || 35;
-    const year = vessel.year || 2020;
-    const brand = vessel.brand?.toLowerCase() || '';
-    const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
-                        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
-    
-    // Calculate base comparable price ranges with realistic depreciation
-    let basePrice = 0;
-    if (luxuryBrand) {
-      basePrice = length * length * 700; // Base for luxury yachts (same as main valuation)
-      // Apply age depreciation to comparables too
-      const age = Math.max(0, new Date().getFullYear() - year);
-      const yearFactor = Math.max(0.18, 0.85 * Math.exp(-0.06 * age) + 0.10);
-      basePrice = Math.round(basePrice * yearFactor);
-      // Apply vintage penalty if needed
-      if (length >= 70 && age >= 25) {
-        basePrice = Math.round(basePrice * 0.9);
-      }
-    } else if (brand.includes('sea ray') || brand.includes('formula')) {
-      basePrice = length * 3500;
-    } else {
-      basePrice = length * 2500;
-    }
-    
-    const minPrice = Math.round(basePrice * 0.6);
-    const maxPrice = Math.round(basePrice * 1.4);
-
-    const prompt = `Generate 6-8 realistic comparable luxury yacht listings for market analysis.
-
-    Target vessel:
-    - Brand: ${vessel.brand} (${luxuryBrand ? 'LUXURY YACHT BRAND' : 'STANDARD BRAND'})
-    - Model: ${vessel.model || 'Similar model'}
-    - Year: ${vessel.year || 'Similar year range'}
-    - Length: ${vessel.loaFt || 'Similar size'}ft ${luxuryBrand ? '(LUXURY YACHT)' : ''}
-    - Fuel Type: ${vessel.fuelType || 'Similar fuel type'}
-
-    CRITICAL PRICING GUIDANCE:
-    - Expected price range: $${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}
-    ${luxuryBrand && year >= 2010 ? '- Modern luxury yachts typically ask $1.5M+ for this size' : ''}
-    ${luxuryBrand && year < 2000 ? '- Vintage luxury yachts (pre-2000) typically under $1.2M even for premium brands' : ''}
-    ${luxuryBrand && year >= 2000 && year < 2010 ? '- Early 2000s luxury yachts typically $0.8M-1.8M range' : ''}
-
-    Generate similar vessels from competing ${luxuryBrand ? 'luxury' : ''} brands like:
-    ${luxuryBrand ? 'Sunseeker, Princess, Azimut, Ferretti, Palmer Johnson, Hatteras, Viking, Bertram' : 'Sea Ray, Formula, Regal, Boston Whaler'}
-
-    Respond with JSON array in this exact format with REALISTIC PRICES:
-    [
-      {
-        "title": "2018 Sunseeker 74 Predator",
-        "ask": ${Math.round(basePrice * 0.9)},
-        "year": 2018,
-        "loa": 74,
-        "region": "Florida",
-        "brand": "Sunseeker",
-        "model": "74 Predator",
-        "fuel_type": "diesel"
-      }
-    ]`;
-
-    console.log("Making OpenAI API call for comparables with new key...");
-    
-    // Convert the prompt to the new input format  
-    const input = `You are a yacht broker creating realistic comparable boat listings. Generate diverse, realistic market data with current pricing. Always respond with valid JSON array.
-
-${prompt}
-
-Please respond with a JSON object containing a "comparables" array in exactly this format:
-{
-  "comparables": [
-    {
-      "title": "boat listing title",
-      "ask": number,
-      "year": number,
-      "loa": number,
-      "region": "location",
-      "brand": "manufacturer",
-      "model": "model name", 
-      "fuel_type": "gas|diesel|unknown"
-    }
-  ]
-}`;
-    
-    const aiResponse = await callOpenAIResponses("gpt-4o-mini", input);
-
-    if (aiResponse.status !== 'ok') {
-      console.log(`OpenAI comparables failed with status: ${aiResponse.status}`);
-      return { 
-        comparables: this.generateSyntheticComparables(vessel),
-        aiStatus: aiResponse.status 
-      };
-    }
-
-    console.log("OpenAI comparables API call successful");
-    
-    try {
-      const result = JSON.parse(aiResponse.text || '{"comparables": []}');
-      let comparables = result.comparables || result || [];
-      
-      // Ensure comparables is an array
-      if (!Array.isArray(comparables)) {
-        console.warn("AI returned non-array comparables, using synthetic comparables");
-        return { 
-          comparables: this.generateSyntheticComparables(vessel),
-          aiStatus: 'ok' 
-        };
-      }
-      
-      // Ensure we return valid comparables with realistic pricing
-      const brand = vessel.brand?.toLowerCase() || '';
-      const luxuryBrand = brand.includes('sunseeker') || brand.includes('princess') || brand.includes('azimut') || brand.includes('ferretti') ||
-                        brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram');
-      const fallbackPrice = luxuryBrand ? (vessel.loaFt || 35) * (vessel.loaFt || 35) * 600 : (vessel.loaFt || 35) * 3000;
-      
-      const validComparables = comparables.slice(0, 8).map((comp: any) => ({
-        title: comp.title || `${comp.year || ''} ${comp.brand || ''} ${comp.model || ''}`.trim(),
-        ask: Math.round(comp.ask || fallbackPrice),
-        year: comp.year || vessel.year || 2020,
-        loa: comp.loa || vessel.loaFt || 30,
-        region: comp.region || 'Various Regions',
-        brand: comp.brand || vessel.brand || 'Various',
-        model: comp.model || vessel.model || 'Various',
-        fuel_type: comp.fuel_type || vessel.fuelType || 'unknown'
-      }));
-
-      return { comparables: validComparables, aiStatus: 'ok' };
-    } catch (parseError) {
-      console.warn("Failed to parse OpenAI comparables response:", parseError);
-      return { 
-        comparables: this.generateSyntheticComparables(vessel),
-        aiStatus: 'error' 
-      };
-    }
-  }
+  // Legacy method - now deprecated since we get real comparables from IYBA
+  // Keeping for fallback scenarios only
 
   private determinePremiumStatus(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">, valuation: any): boolean {
     // Consider it premium if high-value boat or luxury brand
@@ -412,7 +410,11 @@ Please respond with a JSON object containing a "comparables" array in exactly th
     ];
   }
 
-  private generateFallbackEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">, aiStatus: 'rate_limited' | 'error'): AIEstimate {
+  private generateFallbackEstimate(
+    vessel: Omit<Vessel, "id" | "leadId" | "createdAt">,
+    aiStatus: 'rate_limited' | 'error',
+    marketData?: { comparables: AIComparable[]; summary: MarketDataSummary }
+  ): AIEstimate {
     // Enhanced fallback calculation with better logic
     let baseValue = (vessel.loaFt || 35) * 3000; // $3000 per foot baseline
     
@@ -452,7 +454,8 @@ Please respond with a JSON object containing a "comparables" array in exactly th
       wholesale,
       confidence: 'Medium',
       narrative: `${statusMessage} This valuation uses market analysis algorithms and vessel specifications. The ${vessel.year || 'current'} ${vessel.brand} ${vessel.model || ''} in ${vessel.condition || 'good'} condition represents solid value in today's market. Estimated using length-based pricing with adjustments for age, condition, and usage hours.`,
-      comps: this.generateSyntheticComparables(vessel),
+      comps: marketData?.comparables || this.generateSyntheticComparables(vessel),
+      marketData: marketData?.summary,
       isPremiumLead: this.determinePremiumStatus(vessel, { mostLikely }),
       aiStatus
     };
