@@ -1,0 +1,275 @@
+# =====================================================
+# AI-FIRST, CSV-FREE: ON-DEMAND WEB INDEX + LLM EXTRACT
+# =====================================================
+
+# 1) backend/indexer.py — search+scrape+LLM extractor, write to DB
+cat > backend/indexer.py <<'EOF'
+import os, re, time, html
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
+import requests
+from bs4 import BeautifulSoup
+from sqlmodel import Session, select
+from .models import Comp, EstimateRequest
+from .ai_utils import call_openai_text
+
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")  # required for search
+USER_AGENT = {"User-Agent":"Mozilla/5.0 (WaveBot; +https://wavemarinegroup.com)"}
+
+PRICE_RE = re.compile(r'(\$|USD)\s?([0-9][0-9\.,]{4,})')
+YEAR_RE  = re.compile(r'\b(19|20)\d{2}\b')
+LOA_RE   = re.compile(r'(\d{2,3})\s?(ft|feet|\'|′)')
+CLEAN_URL = lambda u: u.split("?")[0].split("#")[0].strip()
+
+def _search_queries(model: str, year: Optional[int], loa_ft: Optional[int], fuel: Optional[str]) -> List[str]:
+    q = model.strip()
+    extras = []
+    if year: extras.append(str(year))
+    if loa_ft: extras.append(f'{loa_ft} ft')
+    if fuel and fuel != 'unknown': extras.append(fuel)
+    base = f'{q} for sale ' + " ".join(extras)
+    return [base, f'{q} yacht for sale ' + " ".join(extras), f'{q} boat for sale ' + " ".join(extras)]
+
+def serpapi_search(query: str, n: int = 8) -> List[str]:
+    if not SERPAPI_KEY: return []
+    try:
+        r = requests.get("https://serpapi.com/search.json",
+                         params={"engine":"google","q":query,"num":n,"api_key":SERPAPI_KEY,"hl":"en"},
+                         timeout=12)
+        r.raise_for_status()
+        data = r.json()
+        urls = []
+        for it in data.get("organic_results", []):
+            u = it.get("link")
+            if u and u.startswith("http"):
+                urls.append(CLEAN_URL(u))
+        return urls[:n]
+    except Exception:
+        return []
+
+def _extract_regex(text: str) -> Dict[str, Any]:
+    # Fast regex pass
+    price = None
+    m = PRICE_RE.search(text.replace(",", ""))
+    if m:
+        try: price = int(re.sub(r'\D','', m.group(0)))
+        except: price = None
+    year = None
+    my = YEAR_RE.search(text)
+    if my:
+        try:
+            y = int(my.group(0))
+            if 1950 <= y <= 2035: year = y
+        except: pass
+    loa = None
+    ml = LOA_RE.search(text.lower())
+    if ml:
+        try:
+            val = int(ml.group(1))
+            if 10 <= val <= 200: loa = val
+        except: pass
+    return {"ask": price, "year": year, "loa": loa}
+
+def _llm_extract(html_text: str) -> Dict[str, Any]:
+    # Uses a tiny prompt to pull price/year/loa when regex is weak
+    snippet = html_text[:15000]
+    prompt = f"""Extract boat listing fields as JSON with keys ask (int USD), year (int), loa (int feet).
+If unknown, return null. Text:
+<<<
+{snippet}
+>>>"""
+    txt, status = call_openai_text("gpt-5.1-mini", prompt, max_retries=1)
+    if not txt: return {}
+    import json
+    try:
+        j = json.loads(txt.strip())
+        out = {}
+        for k in ("ask","year","loa"):
+            v = j.get(k)
+            if isinstance(v, str):
+                try: v = int(re.sub(r'\D','', v))
+                except: v = None
+            out[k] = v if isinstance(v, int) else None
+        return out
+    except Exception:
+        return {}
+
+def _scrape(url: str, use_llm: bool) -> Dict[str, Any]:
+    try:
+        r = requests.get(url, timeout=14, headers=USER_AGENT)
+        if r.status_code != 200: return {}
+        soup = BeautifulSoup(r.text, "html.parser")
+        title = (soup.title.string if soup.title else "") or url
+        text = soup.get_text(" ", strip=True)
+        fields = _extract_regex(text)
+        # If regex weak (no price & no year), try LLM
+        if use_llm and not fields.get("ask") and not fields.get("year"):
+            llm = _llm_extract(text)
+            # fill only missing
+            for k,v in llm.items():
+                if fields.get(k) is None and v: fields[k] = v
+        return {
+            "url": url,
+            "title": html.unescape(title).strip(),
+            "ask": fields.get("ask"),
+            "year": fields.get("year"),
+            "loa": fields.get("loa"),
+            "region": None,
+            "fuel_type": None,
+            "source": "web",
+        }
+    except Exception:
+        return {}
+
+def refresh_index(session: Session, req: EstimateRequest, cap: int = 18, use_llm_extract: bool = True) -> int:
+    # Search multiple queries
+    urls = []
+    for q in _search_queries(req.model, req.year, req.loa_ft, req.fuel_type):
+        urls.extend(serpapi_search(q, n=8))
+    # Deduplicate URLs
+    uniq, seen = [], set()
+    for u in urls:
+        cu = CLEAN_URL(u)
+        if cu in seen: continue
+        seen.add(cu); uniq.append(cu)
+        if len(uniq) >= cap*2: break
+
+    added = 0
+    for u in uniq:
+        item = _scrape(u, use_llm_extract)
+        if not item: continue
+        # price sanity
+        a = item.get("ask")
+        if a is not None and not (10_000 <= a <= 50_000_000): item["ask"] = None
+        # Skip if nothing useful (neither price nor year)
+        if not item.get("ask") and not item.get("year"): continue
+
+        # Dedup by URL
+        exists = session.exec(select(Comp).where(Comp.url == item["url"])).first()
+        if exists:
+            # Update missing fields if any
+            changed = False
+            for k in ("title","ask","year","loa"):
+                val = item.get(k)
+                if val and getattr(exists, k if k!="loa" else "loa", None) in (None, 0):
+                    if k == "loa": setattr(exists, "loa", val)
+                    else: setattr(exists, k, val)
+                    changed = True
+            if changed:
+                session.add(exists); session.commit()
+            continue
+
+        c = Comp(
+            status="active", title=item["title"], model=req.model, year=item.get("year"),
+            loa=item.get("loa"), ask=item.get("ask"), url=item["url"],
+            fuel_type=item.get("fuel_type"), source="web"
+        )
+        session.add(c); session.commit()
+        added += 1
+        if added >= cap: break
+    return added
+
+def recent_indexed_comps(session: Session, req: EstimateRequest, days: int = 14, limit: int = 24) -> List[Comp]:
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    stmt = select(Comp).where(Comp.created_at >= cutoff)
+    stmt = stmt.where(Comp.model.ilike(f"%{req.model}%"))
+    rows = session.exec(stmt).all()
+    # Filter by subject closeness
+    out = []
+    for r in rows:
+        if req.year and r.year and abs(r.year - req.year) > 3: continue
+        if req.loa_ft and r.loa and not (int(req.loa_ft*0.9) <= r.loa <= int(req.loa_ft*1.1)): continue
+        if req.fuel_type and r.fuel_type and req.fuel_type.lower() not in r.fuel_type.lower(): continue
+        out.append(r)
+        if len(out) >= limit: break
+    return out
+EOF
+
+# 2) backend/estimate.py — use recent index first; auto-refresh if sparse
+python - <<'PY'
+from pathlib import Path
+p = Path("backend/estimate.py")
+s = p.read_text()
+s = s.replace("from .web_comps import get_web_comps", "from .web_comps import get_web_comps")
+# Inject indexer usage
+insert = """
+from .indexer import recent_indexed_comps, refresh_index
+from sqlmodel import Session
+"""
+if "recent_indexed_comps" not in s:
+    s = s.replace("from .ai_utils import call_openai_text", "from .ai_utils import call_openai_text" + insert)
+
+# Replace get_comps logic to prefer recent indexed comps and auto-refresh
+s = s.replace(
+"def get_comps(session: Session, req: EstimateRequest, limit=12) -> List[Dict[str, Any]]:",
+"""def get_comps(session: Session, req: EstimateRequest, limit=12) -> List[Dict[str, Any]]:
+    # 1) Try recent indexed comps (last 14 days)
+    indexed = recent_indexed_comps(session, req, days=14, limit=limit)
+    comps = []
+    for r in indexed:
+        comps.append({"title": r.title, "ask": r.ask, "year": r.year, "loa": r.loa, "region": r.location, "url": r.url, "fuel_type": r.fuel_type, "source": r.source or "web"})
+    # If sparse, refresh index on the fly for this subject
+    if len(comps) < 6:
+        try:
+            refresh_index(session, req, cap=18, use_llm_extract=True)
+        except Exception as e:
+            print("refresh_index error:", e)
+        # re-query
+        indexed = recent_indexed_comps(session, req, days=14, limit=limit)
+        comps = [{"title": r.title, "ask": r.ask, "year": r.year, "loa": r.loa, "region": r.location, "url": r.url, "fuel_type": r.fuel_type, "source": r.source or "web"} for r in indexed]
+    # If still light, do direct web scrape fallback
+    if len(comps) < 3:
+        webc = get_web_comps(req.model, req.year, req.loa_ft, req.fuel_type, cap=limit)
+        comps.extend(webc)
+    # Deduplicate by URL/title+ask
+    seen, uniq = set(), []
+    for c in comps:
+        key = c.get("url") or f"{c.get('title')}|{c.get('ask')}"
+        if key in seen: continue
+        seen.add(key); uniq.append(c)
+    return uniq[:limit]
+""")
+p.write_text(s)
+print("estimate.py wired to use on-demand indexer.")
+PY
+
+# 3) backend/main.py — add endpoints to refresh index + view metrics
+python - <<'PY'
+from pathlib import Path
+p = Path("backend/main.py")
+s = p.read_text()
+if "/api/refresh-index" not in s:
+    s += """
+
+from fastapi import Body
+from .models import EstimateRequest, Comp
+from .indexer import refresh_index
+from sqlmodel import select
+
+@app.post("/api/refresh-index")
+def refresh_index_api(payload: dict = Body(...), session: Session = Depends(get_session)):
+    req = EstimateRequest(
+        model=payload.get("model"),
+        year=payload.get("year"),
+        loa_ft=payload.get("loa_ft"),
+        fuel_type=payload.get("fuel_type"),
+        total_hp=payload.get("total_hp"),
+        hours=payload.get("hours"),
+        refit_year=payload.get("refit_year"),
+        condition=payload.get("condition") or "average"
+    )
+    added = refresh_index(session, req, cap=18, use_llm_extract=True)
+    return {"ok": True, "added": added}
+
+@app.get("/api/index/metrics")
+def index_metrics(session: Session = Depends(get_session)):
+    rows = session.exec(select(Comp)).all()
+    return {"ok": True, "count": len(rows)}
+"""
+    p.write_text(s)
+    print("main.py: added /api/refresh-index and /api/index/metrics")
+else:
+    print("Endpoints already exist.")
+PY
+
+echo "AI-first on-demand indexer installed. Restart your repl."
