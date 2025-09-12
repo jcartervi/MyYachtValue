@@ -69,9 +69,11 @@ export class AIEstimatorService {
         brand.includes('palmer johnson') || brand.includes('hatteras') || brand.includes('viking') || brand.includes('bertram')) {
       // Luxury yacht brands - realistic pricing
       baseValue = length * length * 700; // $700 per sq foot equivalent for luxury yachts
-    } else if (brand.includes('sea ray') || brand.includes('formula') || brand.includes('regal')) {
-      // Premium brands
-      baseValue = length * 4000;
+    } else if (brand.includes('sea ray') || brand.includes('formula') || brand.includes('regal') || 
+               brand.includes('scout') || brand.includes('boston whaler') || brand.includes('grady-white') || 
+               brand.includes('pursuit') || brand.includes('jupiter') || brand.includes('yellowfin')) {
+      // Premium brands (including premium fishing boats)
+      baseValue = length * 5000;
     } else {
       // Standard boats
       baseValue = length * 3000;
@@ -367,8 +369,10 @@ Please respond with a JSON object containing a "comparables" array in exactly th
       if (length >= 70 && age >= 25) {
         baseValue = Math.round(baseValue * 0.9); // vintage penalty
       }
-    } else if (brand.includes('sea ray') || brand.includes('formula')) {
-      baseValue = length * 3500;
+    } else if (brand.includes('sea ray') || brand.includes('formula') || 
+               brand.includes('scout') || brand.includes('boston whaler') || brand.includes('grady-white') ||
+               brand.includes('pursuit') || brand.includes('jupiter') || brand.includes('yellowfin')) {
+      baseValue = length * 5000;
     } else {
       baseValue = length * 2500;
     }
