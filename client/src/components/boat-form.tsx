@@ -26,9 +26,6 @@ interface FormData {
   year: string;
   loaFt: string;
   fuelType: string;
-  horsepower: string;
-  hours: string;
-  refitYear: string;
   condition: string;
 }
 
@@ -65,9 +62,6 @@ export default function BoatForm({
       year: "",
       loaFt: "",
       fuelType: "",
-      horsepower: "",
-      hours: "",
-      refitYear: "",
       condition: "good",
     },
   });
@@ -174,9 +168,6 @@ export default function BoatForm({
             year: data.year ? parseInt(data.year) : undefined,
             loaFt: data.loaFt ? parseFloat(data.loaFt) : undefined,
             fuelType: data.fuelType || undefined,
-            horsepower: data.horsepower ? parseInt(data.horsepower) : undefined,
-            hours: data.hours ? parseInt(data.hours) : undefined,
-            refitYear: data.refitYear ? parseInt(data.refitYear) : undefined,
             condition: data.condition,
           },
           turnstileToken,
@@ -438,7 +429,8 @@ export default function BoatForm({
                           <SelectContent>
                             <SelectItem value="gas">Gas</SelectItem>
                             <SelectItem value="diesel">Diesel</SelectItem>
-                            <SelectItem value="unknown">Unknown</SelectItem>
+                            <SelectItem value="electric">Electric</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -447,99 +439,30 @@ export default function BoatForm({
                   />
                 </div>
 
-                <div className="dw-grid-2">
-                  <FormField
-                    control={form.control}
-                    name="horsepower"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="dw-label">Total Horsepower</FormLabel>
+                <FormField
+                  control={form.control}
+                  name="condition"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="dw-label">Condition</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
-                          <Input 
-                            className="dw-input"
-                            type="number"
-                            placeholder="1200" 
-                            min="1"
-                            max="50000"
-                            {...field} 
-                            data-testid="input-horsepower"
-                          />
+                          <SelectTrigger className="dw-select" data-testid="select-condition">
+                            <SelectValue placeholder="Select condition" />
+                          </SelectTrigger>
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="hours"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="dw-label">Engine Hours</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="dw-input"
-                            type="number"
-                            placeholder="420" 
-                            min="0"
-                            max="50000"
-                            {...field} 
-                            data-testid="input-hours"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="refitYear"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Refit Year (Optional)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            placeholder="2022" 
-                            min="1950"
-                            max={new Date().getFullYear()}
-                            {...field} 
-                            data-testid="input-refit-year"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="condition"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Condition</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-condition">
-                              <SelectValue placeholder="Select condition" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="excellent">Excellent</SelectItem>
-                            <SelectItem value="very_good">Very Good</SelectItem>
-                            <SelectItem value="good">Good</SelectItem>
-                            <SelectItem value="fair">Fair</SelectItem>
-                            <SelectItem value="poor">Poor</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                        <SelectContent>
+                          <SelectItem value="project">Project</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="average">Average</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
 
                 {/* Cloudflare Turnstile */}

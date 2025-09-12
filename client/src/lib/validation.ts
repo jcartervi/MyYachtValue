@@ -23,23 +23,8 @@ export const leadVesselValidationSchema = z.object({
     const num = parseFloat(val);
     return num >= 20 && num <= 500;
   }, "Length must be between 20 and 500 feet"),
-  fuelType: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["gas", "diesel", "unknown"]).optional()),
-  horsepower: z.string().optional().refine((val) => {
-    if (!val) return true;
-    const num = parseInt(val);
-    return num >= 1 && num <= 50000;
-  }, "Horsepower must be between 1 and 50,000"),
-  hours: z.string().optional().refine((val) => {
-    if (!val) return true;
-    const num = parseInt(val);
-    return num >= 0 && num <= 50000;
-  }, "Hours must be between 0 and 50,000"),
-  refitYear: z.string().optional().refine((val) => {
-    if (!val) return true;
-    const num = parseInt(val);
-    return num >= 1950 && num <= new Date().getFullYear();
-  }, "Refit year must be between 1950 and current year"),
-  condition: z.string().default("good"),
+  fuelType: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["gas", "diesel", "electric", "other"]).optional()),
+  condition: z.enum(["project", "fair", "average", "good", "excellent"]).default("good"),
 });
 
 export type LeadVesselFormData = z.infer<typeof leadVesselValidationSchema>;

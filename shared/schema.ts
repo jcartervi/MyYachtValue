@@ -27,11 +27,8 @@ export const vessels = pgTable("vessels", {
   makeModel: text("make_model").notNull(),
   year: integer("year"),
   loaFt: real("loa_ft"),
-  fuelType: text("fuel_type"), // gas | diesel | unknown
-  horsepower: integer("horsepower"),
-  hours: integer("hours"),
-  refitYear: integer("refit_year"),
-  condition: text("condition").default("good"),
+  fuelType: text("fuel_type"), // gas | diesel | electric | other
+  condition: text("condition").default("good"), // project | fair | average | good | excellent
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -80,11 +77,8 @@ export const insertVesselSchema = createInsertSchema(vessels).omit({
   makeModel: z.string().min(1, "Make & Model is required"),
   year: z.number().min(1950, "Year must be after 1950").max(new Date().getFullYear() + 1, "Year cannot be in the future").optional(),
   loaFt: z.number().min(20, "Length must be at least 20 feet").max(500, "Length cannot exceed 500 feet").optional(),
-  fuelType: z.enum(["gas", "diesel", "unknown"]).optional(),
-  horsepower: z.number().min(1).max(50000).optional(),
-  hours: z.number().min(0, "Hours cannot be negative").max(50000, "Hours seem too high").optional(),
-  refitYear: z.number().min(1950).max(new Date().getFullYear()).optional(),
-  condition: z.string().default("good"),
+  fuelType: z.enum(["gas", "diesel", "electric", "other"]).optional(),
+  condition: z.enum(["project", "fair", "average", "good", "excellent"]).default("good"),
 });
 
 export const createEstimateRequestSchema = z.object({
