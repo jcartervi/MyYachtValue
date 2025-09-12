@@ -6,7 +6,7 @@ import ValuationResults from "@/components/valuation-results";
 import ProgressIndicator from "@/components/progress-indicator";
 import { useToast } from "@/hooks/use-toast";
 import { useUTMTracking } from "@/hooks/use-utm-tracking";
-import DeckWorthLogo from "@/components/AIBoatLogo";
+import DeckWorthLogo from "@/components/DeckWorthLogo";
 import { Stepper } from "@/components/Stepper";
 import { MetricCard } from "@/components/MetricCard";
 import { Confidence } from "@/components/Confidence";
@@ -186,7 +186,7 @@ export default function BoatValuation() {
             <div className="md:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center ring-1 ring-border bg-transparent">
-                  <DeckWorthLogo size={32} className="text-primary" />
+                  <DeckWorthLogo size={48} />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">DeckWorth</h3>

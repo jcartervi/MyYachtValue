@@ -1,3 +1,5 @@
+import DeckWorthLogo from "@/components/DeckWorthLogo";
+
 export default function HeroHeader() {
   return (
     <header className="relative isolate">
@@ -17,7 +19,7 @@ export default function HeroHeader() {
       {/* Top bar / logo slot */}
       <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src="/your-logo.svg" alt="DeckWorth" className="h-10 w-auto" />
+          <DeckWorthLogo size={40} />
           <div className="text-white/90">
             <div className="font-semibold leading-none text-white">DeckWorth</div>
             <div className="text-xs opacity-80">Instant Boat Valuations</div>
