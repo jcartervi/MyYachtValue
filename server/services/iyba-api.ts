@@ -44,10 +44,10 @@ interface IYBASearchParams {
 }
 
 class IYBACache {
-  private cache = new Map<string, { timestamp: number; data: IYBAListing[] }>();
+  private cache = new Map<string, { timestamp: number; data: IYBAComparable[] }>();
   private readonly TTL = 180000; // 3 minutes in milliseconds
 
-  get(key: string): IYBAListing[] | null {
+  get(key: string): IYBAComparable[] | null {
     const entry = this.cache.get(key);
     if (!entry) return null;
     
@@ -59,7 +59,7 @@ class IYBACache {
     return entry.data;
   }
 
-  set(key: string, data: IYBAListing[]): void {
+  set(key: string, data: IYBAComparable[]): void {
     this.cache.set(key, {
       timestamp: Date.now(),
       data
@@ -83,11 +83,12 @@ export class IYBAService {
     const baseParams = {
       key: this.apiKey!,
       id: this.brokerId!,
-      gallery: "true",
+      // Only request essential data for performance
+      gallery: "false",
       engines: "true",
-      generators: "true", 
-      textblocks: "true",
-      media: "true",
+      generators: "false", 
+      textblocks: "false",
+      media: "false",
       status: "On,Under Contract"
     };
 
@@ -128,36 +129,77 @@ export class IYBAService {
     };
   }
 
-  private async fetchFullSpecs(params: Record<string, any> = {}): Promise<IYBAListing[]> {
+  private async fetchFilteredComparables(searchParams: IYBASearchParams): Promise<IYBAComparable[]> {
     if (!this.brokerId || !this.apiKey) {
       console.warn("IYBA credentials missing, cannot fetch listings");
       return [];
     }
 
     const url = `${this.baseUrl}/listings`;
-    const queryParams = this.buildQueryParams(params);
     
-    // Create cache key from URL and sorted params
-    const cacheKey = url + "|" + Object.keys(queryParams)
-      .sort()
-      .map(k => `${k}=${queryParams[k]}`)
-      .join("&");
+    // Build server-side filter parameters
+    const apiParams: Record<string, any> = {};
+    
+    // Add brand filter
+    if (searchParams.brand) {
+      apiParams.brand = searchParams.brand;
+    }
+    
+    // Add model filter
+    if (searchParams.model) {
+      apiParams.model = searchParams.model;
+    }
+    
+    // Add year range filter (±3 years)
+    if (searchParams.year) {
+      apiParams.year_min = searchParams.year - 3;
+      apiParams.year_max = searchParams.year + 3;
+    }
+    
+    // Add length range filter
+    if (searchParams.length_min) {
+      apiParams.length_min = Math.floor(searchParams.length_min);
+    }
+    if (searchParams.length_max) {
+      apiParams.length_max = Math.ceil(searchParams.length_max);
+    }
+    
+    // Add engine type filter
+    if (searchParams.engine_type) {
+      apiParams.fuel = searchParams.engine_type;
+    }
+    
+    // Add limit for performance
+    apiParams.limit = searchParams.limit || 50;
+    
+    const queryParams = this.buildQueryParams(apiParams);
+    
+    // Create cache key from search parameters
+    const cacheKey = [
+      searchParams.brand || '',
+      searchParams.model || '', 
+      searchParams.year || '',
+      searchParams.length_min || '',
+      searchParams.length_max || '',
+      searchParams.engine_type || '',
+      searchParams.limit || 8
+    ].join('|');
 
     // Check cache first
     const cached = this.cache.get(cacheKey);
     if (cached) {
-      console.log("IYBA: Using cached data");
+      console.log(`IYBA: Using cached comparables (${cached.length} items)`);
       return cached;
     }
 
     try {
-      console.log("IYBA: Fetching fresh data from API...");
+      console.log(`IYBA: Fetching filtered data from API with params:`, apiParams);
       
-      const searchParams = new URLSearchParams(queryParams);
+      const searchParamsObj = new URLSearchParams(queryParams);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
-      const response = await fetch(`${url}?${searchParams}`, {
+      const response = await fetch(`${url}?${searchParamsObj}`, {
         method: 'GET',
         signal: controller.signal,
         headers: {
@@ -183,12 +225,86 @@ export class IYBAService {
         items = data;
       }
 
-      console.log(`IYBA: Fetched ${items.length} raw listings`);
+      console.log(`IYBA: Fetched ${items.length} filtered raw listings`);
       
-      // Cache the results
-      this.cache.set(cacheKey, items);
+      // Normalize and apply any remaining client-side filters
+      const comparables: IYBAComparable[] = [];
       
-      return items;
+      for (const listing of items) {
+        const normalized = this.normalizeItem(listing);
+        if (!normalized) continue;
+
+        // Apply refined client-side filters for exact matching
+        let matches = true;
+
+        // Refined brand filter (case-insensitive partial match)
+        if (searchParams.brand && !normalized.brand.toLowerCase().includes(searchParams.brand.toLowerCase())) {
+          matches = false;
+        }
+
+        // Refined model filter (case-insensitive partial match)
+        if (searchParams.model && !normalized.model.toLowerCase().includes(searchParams.model.toLowerCase())) {
+          matches = false;
+        }
+
+        // Refined year filter (+/- 3 years)
+        if (searchParams.year && normalized.year && Math.abs(normalized.year - searchParams.year!) > 3) {
+          matches = false;
+        }
+
+        // Refined length filter (exact range)
+        if (searchParams.length_min && normalized.loa && normalized.loa < searchParams.length_min) {
+          matches = false;
+        }
+        if (searchParams.length_max && normalized.loa && normalized.loa > searchParams.length_max) {
+          matches = false;
+        }
+
+        // Refined engine type filter
+        if (searchParams.engine_type) {
+          const targetEngine = searchParams.engine_type.toLowerCase();
+          const listingEngine = normalized.engine_type;
+          
+          if (!listingEngine.includes(targetEngine)) {
+            // Allow some flexibility in engine matching
+            const isShaftMatch = targetEngine.includes('shaft') && listingEngine.includes('shaft');
+            const isIPSMatch = targetEngine.includes('ips') && listingEngine.includes('ips');
+            const isOutboardMatch = targetEngine.includes('outboard') && listingEngine.includes('outboard');
+            
+            if (!isShaftMatch && !isIPSMatch && !isOutboardMatch) {
+              matches = false;
+            }
+          }
+        }
+
+        if (matches) {
+          comparables.push(normalized);
+        }
+      }
+
+      console.log(`IYBA: Found ${comparables.length} matching comparables after normalization`);
+
+      // Sort by year proximity if year was specified, otherwise by price
+      if (searchParams.year) {
+        comparables.sort((a, b) => {
+          const targetYear = searchParams.year!;
+          const yearDiffA = Math.abs((a.year || targetYear) - targetYear);
+          const yearDiffB = Math.abs((b.year || targetYear) - targetYear);
+          if (yearDiffA !== yearDiffB) {
+            return yearDiffA - yearDiffB;
+          }
+          return Math.abs(a.ask - b.ask);
+        });
+      } else {
+        comparables.sort((a, b) => b.ask - a.ask); // Sort by price descending
+      }
+
+      const finalResults = comparables.slice(0, searchParams.limit || 8);
+      
+      // Cache the processed results
+      this.cache.set(cacheKey, finalResults);
+      
+      return finalResults;
     } catch (error) {
       console.error("IYBA API fetch error:", error);
       return [];
@@ -196,88 +312,8 @@ export class IYBAService {
   }
 
   async searchComparables(params: IYBASearchParams): Promise<IYBAComparable[]> {
-    const { brand, model, year, length_min, length_max, engine_type, limit = 8 } = params;
-    
-    // Fetch all listings (we'll filter client-side for now)
-    const rawListings = await this.fetchFullSpecs();
-    
-    if (rawListings.length === 0) {
-      console.log("IYBA: No raw listings available");
-      return [];
-    }
-
-    // Normalize and filter listings
-    const comparables: IYBAComparable[] = [];
-    
-    for (const listing of rawListings) {
-      const normalized = this.normalizeItem(listing);
-      if (!normalized) continue;
-
-      // Apply filters
-      let matches = true;
-
-      // Brand filter (case-insensitive partial match)
-      if (brand && !normalized.brand.toLowerCase().includes(brand.toLowerCase())) {
-        matches = false;
-      }
-
-      // Model filter (case-insensitive partial match)
-      if (model && !normalized.model.toLowerCase().includes(model.toLowerCase())) {
-        matches = false;
-      }
-
-      // Year filter (+/- 3 years)
-      if (year && normalized.year && Math.abs(normalized.year - year) > 3) {
-        matches = false;
-      }
-
-      // Length filter (15% range)
-      if (length_min && normalized.loa && normalized.loa < length_min) {
-        matches = false;
-      }
-      if (length_max && normalized.loa && normalized.loa > length_max) {
-        matches = false;
-      }
-
-      // Engine type filter
-      if (engine_type) {
-        const targetEngine = engine_type.toLowerCase();
-        const listingEngine = normalized.engine_type;
-        
-        if (!listingEngine.includes(targetEngine)) {
-          // Allow some flexibility in engine matching
-          const isShaftMatch = targetEngine.includes('shaft') && listingEngine.includes('shaft');
-          const isIPSMatch = targetEngine.includes('ips') && listingEngine.includes('ips');
-          const isOutboardMatch = targetEngine.includes('outboard') && listingEngine.includes('outboard');
-          
-          if (!isShaftMatch && !isIPSMatch && !isOutboardMatch) {
-            matches = false;
-          }
-        }
-      }
-
-      if (matches) {
-        comparables.push(normalized);
-      }
-    }
-
-    console.log(`IYBA: Found ${comparables.length} matching comparables`);
-
-    // Sort by year proximity if year was specified, otherwise by price
-    if (year) {
-      comparables.sort((a, b) => {
-        const yearDiffA = Math.abs((a.year || year) - year);
-        const yearDiffB = Math.abs((b.year || year) - year);
-        if (yearDiffA !== yearDiffB) {
-          return yearDiffA - yearDiffB;
-        }
-        return Math.abs(a.ask - b.ask);
-      });
-    } else {
-      comparables.sort((a, b) => b.ask - a.ask); // Sort by price descending
-    }
-
-    return comparables.slice(0, limit);
+    // Use the new server-side filtered approach
+    return this.fetchFilteredComparables(params);
   }
 
   async searchComparablesForVessel(
@@ -287,7 +323,7 @@ export class IYBAService {
     loaFt?: number,
     fuelType?: string
   ): Promise<IYBAComparable[]> {
-    console.log(`IYBA: Searching comparables for ${year || ''} ${brand} ${model || ''} (${loaFt || '?'}ft)`);
+    console.log(`IYBA: Searching comparables for ${year || ''} ${brand} ${model || ''} (${loaFt || '?'}ft) with server-side filtering`);
 
     // Calculate length range (+/- 15%)
     let length_min: number | undefined;
@@ -310,7 +346,8 @@ export class IYBAService {
       }
     }
 
-    return this.searchComparables({
+    // Use the optimized server-side filtering approach
+    return this.fetchFilteredComparables({
       brand,
       model,
       year,
@@ -355,11 +392,11 @@ export class IYBAService {
 
   // Test endpoint for verification
   async smokeTest(): Promise<{ count: number; sample: IYBAComparable[] }> {
-    console.log("IYBA: Running smoke test...");
+    console.log("IYBA: Running smoke test with server-side filtering...");
     const comparables = await this.searchComparables({
       brand: "Sunseeker",
       year: 2019,
-      engine_type: "shaft",
+      engine_type: "diesel",
       limit: 5
     });
 
