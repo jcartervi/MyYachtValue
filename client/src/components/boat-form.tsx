@@ -22,8 +22,7 @@ interface FormData {
   city: string;
   zipCode: string;
   // Vessel data
-  brand: string;
-  model: string;
+  makeModel: string;
   year: string;
   loaFt: string;
   fuelType: string;
@@ -62,8 +61,7 @@ export default function BoatForm({
       smsConsent: true,
       city: "",
       zipCode: "",
-      brand: "",
-      model: "",
+      makeModel: "",
       year: "",
       loaFt: "",
       fuelType: "",
@@ -130,12 +128,12 @@ export default function BoatForm({
       // Validate contact information
       // Debug logging removed for production
       
-      const contactValid = data.email && data.phone && data.brand;
+      const contactValid = data.email && data.phone && data.makeModel;
       if (!contactValid) {
         const missingFields = [];
         if (!data.email) missingFields.push("email");
         if (!data.phone) missingFields.push("phone");
-        if (!data.brand) missingFields.push("boat brand");
+        if (!data.makeModel) missingFields.push("boat make & model");
         
         toast({
           title: "Required Fields Missing",
@@ -172,8 +170,7 @@ export default function BoatForm({
             zipCode: data.zipCode || undefined,
           },
           vesselData: {
-            brand: data.brand,
-            model: data.model || undefined,
+            makeModel: data.makeModel,
             year: data.year ? parseInt(data.year) : undefined,
             loaFt: data.loaFt ? parseFloat(data.loaFt) : undefined,
             fuelType: data.fuelType || undefined,
@@ -320,16 +317,16 @@ export default function BoatForm({
 
                 <FormField
                   control={form.control}
-                  name="brand"
+                  name="makeModel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="dw-label">Boat Brand *</FormLabel>
+                      <FormLabel className="dw-label">Boat Make & Model *</FormLabel>
                       <FormControl>
                         <Input 
                           className="dw-input"
-                          placeholder="Sunseeker, Azimut, Princess, etc." 
+                          placeholder="Sunseeker 68 Sport Boat, Azimut 55, Princess V65, etc." 
                           {...field} 
-                          data-testid="input-brand"
+                          data-testid="input-make-model"
                         />
                       </FormControl>
                       <FormMessage />
@@ -383,24 +380,6 @@ export default function BoatForm({
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="model"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="dw-label">Model</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="dw-input"
-                            placeholder="68 Sport Boat" 
-                            {...field} 
-                            data-testid="input-model"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
 
                   <FormField
                     control={form.control}

@@ -24,8 +24,7 @@ export const leads = pgTable("leads", {
 export const vessels = pgTable("vessels", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   leadId: varchar("lead_id").notNull().references(() => leads.id),
-  brand: text("brand").notNull(),
-  model: text("model"),
+  makeModel: text("make_model").notNull(),
   year: integer("year"),
   loaFt: real("loa_ft"),
   fuelType: text("fuel_type"), // gas | diesel | unknown
@@ -78,8 +77,7 @@ export const insertVesselSchema = createInsertSchema(vessels).omit({
   leadId: true,
   createdAt: true,
 }).extend({
-  brand: z.string().min(1, "Brand is required"),
-  model: z.string().optional(),
+  makeModel: z.string().min(1, "Make & Model is required"),
   year: z.number().min(1950, "Year must be after 1950").max(new Date().getFullYear() + 1, "Year cannot be in the future").optional(),
   loaFt: z.number().min(20, "Length must be at least 20 feet").max(500, "Length cannot exceed 500 feet").optional(),
   fuelType: z.enum(["gas", "diesel", "unknown"]).optional(),

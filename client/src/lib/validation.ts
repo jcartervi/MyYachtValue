@@ -12,8 +12,7 @@ export const leadVesselValidationSchema = z.object({
   zipCode: z.string().optional(),
 
   // Vessel validation
-  brand: z.string().min(1, "Brand is required"),
-  model: z.string().optional(),
+  makeModel: z.string().min(1, "Make & Model is required"),
   year: z.string().optional().refine((val) => {
     if (!val) return true;
     const num = parseInt(val);
