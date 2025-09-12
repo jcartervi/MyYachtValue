@@ -6,7 +6,7 @@ import ValuationResults from "@/components/valuation-results";
 import ProgressIndicator from "@/components/progress-indicator";
 import { useToast } from "@/hooks/use-toast";
 import { useUTMTracking } from "@/hooks/use-utm-tracking";
-import AIBoatLogo from "@/components/AIBoatLogo";
+import DeckWorthLogo from "@/components/AIBoatLogo";
 import { Stepper } from "@/components/Stepper";
 import { MetricCard } from "@/components/MetricCard";
 import { Confidence } from "@/components/Confidence";
@@ -84,7 +84,7 @@ export default function BoatValuation() {
             <div style={{width:36,height:36,borderRadius:12,background:"rgba(33,179,211,.18)",display:"grid",placeItems:"center",fontWeight:700}}>D</div>
             <div>
               <div style={{fontWeight:700}}>DeckWorth</div>
-              <div style={{fontSize:12,opacity:.85}}>Instant AI Boat Valuation</div>
+              <div style={{fontSize:12,opacity:.85}}>Instant Boat Valuations</div>
             </div>
           </div>
           <button className="dw-btn dw-btn-ghost">Contact</button>
@@ -167,8 +167,8 @@ export default function BoatValuation() {
           <Card className="mt-12 shadow-lg">
             <CardContent className="p-8">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2">Why Trust AI Boat Valuation?</h2>
-                <p className="text-muted-foreground">Your boat valuation is powered by advanced AI and real market data</p>
+                <h2 className="text-2xl font-bold mb-2">Why Trust DeckWorth?</h2>
+                <p className="text-muted-foreground">Your boat valuation is powered by advanced technology and real market data</p>
               </div>
               <div className="grid md:grid-cols-4 gap-8 text-center">
                 <div>
@@ -200,15 +200,15 @@ export default function BoatValuation() {
             <div className="md:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center ring-1 ring-border bg-transparent">
-                  <AIBoatLogo size={32} className="text-primary" />
+                  <DeckWorthLogo size={32} className="text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold">AI Boat Valuation</h3>
-                  <p className="text-xs text-muted-foreground">Powered by AI Technology</p>
+                  <h3 className="text-lg font-bold">DeckWorth</h3>
+                  <p className="text-xs text-muted-foreground">Advanced Boat Valuations</p>
                 </div>
               </div>
               <p className="text-muted-foreground text-sm mb-4">
-                Advanced AI-powered boat valuation platform, providing instant 
+                Advanced boat valuation platform, providing instant 
                 market analysis. Fast, accurate, and completely free to use.
               </p>
               <div className="flex space-x-4">
@@ -226,7 +226,7 @@ export default function BoatValuation() {
             <div>
               <h4 className="font-semibold mb-4">Features</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary">AI Valuations</a></li>
+                <li><a href="#" className="hover:text-primary">Boat Valuations</a></li>
                 <li><a href="#" className="hover:text-primary">Market Analysis</a></li>
                 <li><a href="#" className="hover:text-primary">Price Comparables</a></li>
                 <li><a href="#" className="hover:text-primary">Instant Reports</a></li>
@@ -241,7 +241,7 @@ export default function BoatValuation() {
                 </div>
                 <div className="flex items-center">
                   <i className="fas fa-envelope mr-2" />
-                  <a href="mailto:support@aiboatevaluation.com" className="hover:text-primary">support@aiboatevaluation.com</a>
+                  <a href="mailto:support@deckworth.com" className="hover:text-primary">support@deckworth.com</a>
                 </div>
                 <div className="flex items-center">
                   <i className="fas fa-shield-alt mr-2" />
@@ -251,7 +251,7 @@ export default function BoatValuation() {
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 AI Boat Valuation. All rights reserved. • Powered by Advanced AI • TCPA Compliant</p>
+            <p>&copy; 2024 DeckWorth. All rights reserved. • Advanced Technology • TCPA Compliant</p>
           </div>
         </div>
       </footer>

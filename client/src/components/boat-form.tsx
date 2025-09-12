@@ -341,7 +341,7 @@ export default function BoatForm({
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>
-                          I agree to receive texts/calls from AI Boat Valuation
+                          I agree to receive texts/calls from DeckWorth
                         </FormLabel>
                         <FormDescription>
                           Message & data rates may apply. You can opt out at any time.
@@ -360,7 +360,7 @@ export default function BoatForm({
                 </Button>
 
                 <p style={{textAlign:"center", fontSize:14, color:"#6B7C8F"}}>
-                  AI Powered Tool • Advanced Analytics • Instant Results
+                  Advanced Analytics • Instant Results • Trusted Valuations
                 </p>
             </div>
           )}
