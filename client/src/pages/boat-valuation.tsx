@@ -7,6 +7,10 @@ import ProgressIndicator from "@/components/progress-indicator";
 import { useToast } from "@/hooks/use-toast";
 import { useUTMTracking } from "@/hooks/use-utm-tracking";
 import AIBoatLogo from "@/components/AIBoatLogo";
+import { Stepper } from "@/components/Stepper";
+import { MetricCard } from "@/components/MetricCard";
+import { Confidence } from "@/components/Confidence";
+import { Loader } from "@/components/Loader";
 
 interface ValuationData {
   lead: {
@@ -74,91 +78,49 @@ export default function BoatValuation() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b border-border shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center ring-1 ring-border bg-transparent">
-                <AIBoatLogo size={32} className="text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">AI Boat Valuation</h1>
-                <p className="text-xs text-muted-foreground">Powered by AI Technology</p>
-              </div>
-            </div>
-            <div className="hidden md:flex items-center space-x-4 text-sm text-muted-foreground">
-              <span className="flex items-center">
-                <i className="fas fa-brain mr-1" />
-                AI-Powered Tool
-              </span>
-              <span className="flex items-center">
-                <i className="fas fa-bolt mr-1" />
-                Instant Analysis
-              </span>
+      <header className="dw-card" style={{padding:"14px 18px", background:"var(--sea)", color:"#fff"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:36,height:36,borderRadius:12,background:"rgba(33,179,211,.18)",display:"grid",placeItems:"center",fontWeight:700}}>D</div>
+            <div>
+              <div style={{fontWeight:700}}>DeckWorth</div>
+              <div style={{fontSize:12,opacity:.85}}>Instant AI Boat Valuation</div>
             </div>
           </div>
+          <button className="dw-btn dw-btn-ghost">Contact</button>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="gradient-bg text-white py-16 relative overflow-hidden">
-        <div className="absolute inset-0 bg-slate-800 opacity-25" />
-        <div 
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: "url('https://cdn.yachtbroker.org/images/highdef/2832670_a0ed8026_1.jpg')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
-        <div className="max-w-4xl mx-auto px-4 relative z-10">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">What's Your Boat Worth Today?</h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100">Instant AI-powered valuation with recent market comparables</p>
-            <div className="flex flex-wrap justify-center gap-6 text-sm">
-              <div className="flex items-center">
-                <i className="fas fa-lock mr-2" />
-                100% Private & Secure
-              </div>
-              <div className="flex items-center">
-                <i className="fas fa-chart-line mr-2" />
-                Real Market Data
-              </div>
-              <div className="flex items-center">
-                <i className="fas fa-clock mr-2" />
-                Instant Results
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Application */}
-      <main className="max-w-3xl mx-auto px-4 py-12">
-        {/* Progress Indicator */}
-        <div className="mb-12">
-          <ProgressIndicator currentStep={currentStep} />
-        </div>
-
-        {/* Form or Results */}
+      <main style={{maxWidth:960, margin:"24px auto", padding:"0 16px"}}>
+        <Stepper step={currentStep} steps={["Contact", "Vessel", "Results"]} />
+        
         {currentStep < 3 ? (
-          <BoatForm
-            currentStep={currentStep}
-            onStepChange={setCurrentStep}
-            onComplete={handleValuationComplete}
-            onLoadingChange={setIsLoading}
-            isLoading={isLoading}
-            utmParams={utmParams}
-          />
+          <section className="dw-card" style={{padding:18, marginTop:16}}>
+            <BoatForm
+              currentStep={currentStep}
+              onStepChange={setCurrentStep}
+              onComplete={handleValuationComplete}
+              onLoadingChange={setIsLoading}
+              isLoading={isLoading}
+              utmParams={utmParams}
+            />
+          </section>
         ) : (
           valuationData && (
-            <ValuationResults
-              data={valuationData}
-              onCallJames={handleCallJames}
-              onEmailReport={handleEmailReport}
-            />
+            <section className="dw-card" style={{padding:18, marginTop:16}}>
+              <div className="dw-grid-2">
+                <MetricCard label="Low" value={valuationData.estimate.low}/>
+                <MetricCard label="Most Likely" value={valuationData.estimate.mostLikely}/>
+                <MetricCard label="High" value={valuationData.estimate.high}/>
+                <MetricCard label="Wholesale" value={valuationData.estimate.wholesale}/>
+              </div>
+              <Confidence level={valuationData.estimate.confidence as "Low" | "Medium" | "High"}/>
+              <p style={{marginTop:12, color:"#334155", whiteSpace:"pre-wrap"}}>{valuationData.estimate.narrative}</p>
+            </section>
           )
         )}
+
+        {isLoading && <div style={{marginTop:16}}><Loader/></div>}
 
         {/* Additional Services */}
         {currentStep === 3 && (

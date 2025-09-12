@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormStorage } from "@/hooks/use-form-storage";
 import { leadVesselValidationSchema } from "@/lib/validation";
 import { apiRequest } from "@/lib/queryClient";
+import { Loader } from "@/components/Loader";
 
 interface FormData {
   // Lead data
@@ -216,19 +216,17 @@ export default function BoatForm({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           {currentStep === 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            <div className="dw-stack">
+              <h2 style={{fontSize:20, fontWeight:700, color:"var(--ink)", marginBottom:8}}>Contact Information</h2>
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name (Optional)</FormLabel>
+                      <FormLabel className="dw-label">Name (Optional)</FormLabel>
                       <FormControl>
                         <Input 
+                          className="dw-input"
                           placeholder="Your full name" 
                           {...field} 
                           data-testid="input-name"
@@ -244,9 +242,10 @@ export default function BoatForm({
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email Address *</FormLabel>
+                      <FormLabel className="dw-label">Email Address *</FormLabel>
                       <FormControl>
                         <Input 
+                          className="dw-input"
                           type="email"
                           placeholder="your@email.com" 
                           {...field} 
@@ -263,9 +262,10 @@ export default function BoatForm({
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number *</FormLabel>
+                      <FormLabel className="dw-label">Phone Number *</FormLabel>
                       <FormControl>
                         <Input 
+                          className="dw-input"
                           type="tel"
                           placeholder="(555) 123-4567" 
                           {...field} 
@@ -277,15 +277,16 @@ export default function BoatForm({
                   )}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="dw-grid-2">
                   <FormField
                     control={form.control}
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>City</FormLabel>
+                        <FormLabel className="dw-label">City</FormLabel>
                         <FormControl>
                           <Input 
+                            className="dw-input"
                             placeholder="Miami" 
                             {...field} 
                             data-testid="input-city"
@@ -301,9 +302,10 @@ export default function BoatForm({
                     name="zipCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Zip Code</FormLabel>
+                        <FormLabel className="dw-label">Zip Code</FormLabel>
                         <FormControl>
                           <Input 
+                            className="dw-input"
                             placeholder="33101" 
                             {...field} 
                             data-testid="input-zipcode"
@@ -360,58 +362,53 @@ export default function BoatForm({
 
                 <Button 
                   type="submit" 
-                  className="w-full"
+                  className="dw-btn dw-btn-primary w-full"
                   data-testid="button-continue-step1"
                 >
                   Continue to Vessel Details
                 </Button>
 
-                <p className="text-center text-sm text-muted-foreground">
+                <p style={{textAlign:"center", fontSize:14, color:"#6B7C8F"}}>
                   AI Powered Tool • Advanced Analytics • Instant Results
                 </p>
-              </CardContent>
-            </Card>
+            </div>
           )}
 
           {currentStep === 2 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Vessel Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="dw-stack">
+              <h2 style={{fontSize:20, fontWeight:700, color:"var(--ink)", marginBottom:8}}>Vessel Details</h2>
+                <FormField
+                  control={form.control}
+                  name="year"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="dw-label">Year</FormLabel>
+                      <FormControl>
+                        <Input 
+                          className="dw-input"
+                          type="number"
+                          placeholder="2020" 
+                          min="1950"
+                          max={new Date().getFullYear() + 1}
+                          {...field} 
+                          data-testid="input-year"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <FormField
-                    control={form.control}
-                    name="year"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Year</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            placeholder="2020" 
-                            min="1950"
-                            max={new Date().getFullYear() + 1}
-                            {...field} 
-                            data-testid="input-year"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="dw-grid-2">
                   <FormField
                     control={form.control}
                     name="loaFt"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Length Overall (ft)</FormLabel>
+                        <FormLabel className="dw-label">Length Overall (ft)</FormLabel>
                         <FormControl>
                           <Input 
+                            className="dw-input"
                             type="number"
                             placeholder="65" 
                             min="20"
@@ -431,10 +428,10 @@ export default function BoatForm({
                     name="fuelType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Fuel Type</FormLabel>
+                        <FormLabel className="dw-label">Fuel Type</FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-fuel-type">
+                            <SelectTrigger className="dw-select" data-testid="select-fuel-type">
                               <SelectValue placeholder="Select fuel type" />
                             </SelectTrigger>
                           </FormControl>
@@ -450,15 +447,16 @@ export default function BoatForm({
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="dw-grid-2">
                   <FormField
                     control={form.control}
                     name="horsepower"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Total Horsepower</FormLabel>
+                        <FormLabel className="dw-label">Total Horsepower</FormLabel>
                         <FormControl>
                           <Input 
+                            className="dw-input"
                             type="number"
                             placeholder="1200" 
                             min="1"
@@ -477,9 +475,10 @@ export default function BoatForm({
                     name="hours"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Engine Hours</FormLabel>
+                        <FormLabel className="dw-label">Engine Hours</FormLabel>
                         <FormControl>
                           <Input 
+                            className="dw-input"
                             type="number"
                             placeholder="420" 
                             min="0"
@@ -590,8 +589,7 @@ export default function BoatForm({
                     )}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+            </div>
           )}
         </form>
       </Form>
