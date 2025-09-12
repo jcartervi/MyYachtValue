@@ -66,14 +66,10 @@ export class DatabaseStorage implements IStorage {
       .insert(vessels)
       .values({
         leadId: vesselData.leadId,
-        brand: vesselData.brand,
-        model: vesselData.model || null,
+        makeModel: vesselData.makeModel,
         year: vesselData.year || null,
         loaFt: vesselData.loaFt || null,
         fuelType: vesselData.fuelType || null,
-        horsepower: vesselData.horsepower || null,
-        hours: vesselData.hours || null,
-        refitYear: vesselData.refitYear || null,
         condition: vesselData.condition || 'good',
       })
       .returning();

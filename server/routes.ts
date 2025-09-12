@@ -144,16 +144,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         leadId: lead.id,
       });
 
+      // Parse makeModel into brand and model for the estimator
+      const makeModelParts = vesselData.makeModel.split(' ');
+      const brand = makeModelParts[0] || '';
+      const model = makeModelParts.slice(1).join(' ') || null;
+
       // Generate valuation estimate - convert undefined to null for estimator
       const estimateInputData = {
-        brand: vesselData.brand,
-        model: vesselData.model || null,
+        brand,
+        model,
         year: vesselData.year || null,
         loaFt: vesselData.loaFt || null,
         fuelType: vesselData.fuelType || null,
-        horsepower: vesselData.horsepower || null,
-        hours: vesselData.hours || null,
-        refitYear: vesselData.refitYear || null,
+        horsepower: null, // No longer collected
+        hours: null, // No longer collected
+        refitYear: null, // No longer collected
         condition: vesselData.condition || "good",
       };
       const estimateResult = await estimatorService.generateEstimate(estimateInputData);
@@ -166,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle premium lead notifications
       if (estimateResult.isPremiumLead && lead.smsConsent && lead.phone) {
-        const smsMessage = `🚨 PREMIUM LEAD ALERT: ${lead.name || lead.email} - ${vessel.year} ${vessel.brand} ${vessel.model} - Est: $${estimateResult.mostLikely.toLocaleString()} - Phone: ${lead.phone}`;
+        const smsMessage = `🚨 PREMIUM LEAD ALERT: ${lead.name || lead.email} - ${vessel.year} ${vessel.makeModel} - Est: $${estimateResult.mostLikely.toLocaleString()} - Phone: ${lead.phone}`;
         
         const smsResult = await twilioService.sendSMS(
           process.env.ALERT_PHONE_NUMBER || "+19545410105",
@@ -194,12 +199,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Map vessel data to custom fields (configure field keys in environment)
           const customFields: Record<string, any> = {};
           
-          if (process.env.PIPEDRIVE_FIELD_BRAND) customFields[process.env.PIPEDRIVE_FIELD_BRAND] = vessel.brand;
-          if (process.env.PIPEDRIVE_FIELD_MODEL) customFields[process.env.PIPEDRIVE_FIELD_MODEL] = vessel.model;
+          if (process.env.PIPEDRIVE_FIELD_BRAND) customFields[process.env.PIPEDRIVE_FIELD_BRAND] = brand;
+          if (process.env.PIPEDRIVE_FIELD_MODEL) customFields[process.env.PIPEDRIVE_FIELD_MODEL] = model;
           if (process.env.PIPEDRIVE_FIELD_YEAR) customFields[process.env.PIPEDRIVE_FIELD_YEAR] = vessel.year;
           if (process.env.PIPEDRIVE_FIELD_LOA) customFields[process.env.PIPEDRIVE_FIELD_LOA] = vessel.loaFt;
           if (process.env.PIPEDRIVE_FIELD_FUEL_TYPE) customFields[process.env.PIPEDRIVE_FIELD_FUEL_TYPE] = vessel.fuelType;
-          if (process.env.PIPEDRIVE_FIELD_HOURS) customFields[process.env.PIPEDRIVE_FIELD_HOURS] = vessel.hours;
           if (process.env.PIPEDRIVE_FIELD_VALUATION) customFields[process.env.PIPEDRIVE_FIELD_VALUATION] = JSON.stringify({
             low: estimate.low,
             mostLikely: estimate.mostLikely,
@@ -208,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             confidence: estimate.confidence,
           });
 
-          const dealTitle = `Valuation: ${vessel.brand} ${vessel.model || ""} ${vessel.year || ""}`.trim();
+          const dealTitle = `Valuation: ${vessel.makeModel} ${vessel.year || ""}`.trim();
           const dealResult = await pipedriveService.createDeal(
             dealTitle,
             personResult.personId,
@@ -222,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await pipedriveService.createActivity(
                 dealResult.dealId,
                 "High-Value Lead Follow-Up",
-                `Premium lead with ${vessel.year} ${vessel.brand} ${vessel.model}. Estimated value: $${estimateResult.mostLikely.toLocaleString()}. Contact within 24 hours.`,
+                `Premium lead with ${vessel.year} ${vessel.makeModel}. Estimated value: $${estimateResult.mostLikely.toLocaleString()}. Contact within 24 hours.`,
                 "call"
               );
             }
@@ -249,12 +253,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         vessel: {
           id: vessel.id,
-          brand: vessel.brand,
-          model: vessel.model,
+          makeModel: vessel.makeModel,
           year: vessel.year,
           loaFt: vessel.loaFt,
           fuelType: vessel.fuelType,
-          hours: vessel.hours,
           condition: vessel.condition,
         },
         estimate: {
