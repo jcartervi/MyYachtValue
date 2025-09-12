@@ -1,0 +1,99 @@
+/* src/theme.css */
+/* ---- Brand tokens (easy to tweak later) ---- */
+:root{
+  --ink:#0A1220;        /* headings, strong text */
+  --sea:#0F2A43;        /* header, primary buttons */
+  --tide:#1E5A8C;       /* accents/links */
+  --foam:#F6FAFD;       /* app background */
+  --mint:#21B3D3;       /* highlight */
+  --card:#FFFFFF;       /* surfaces */
+  --border:#E6E9EE;     /* subtle borders */
+  --ring: rgba(33,179,211,0.45);
+  --radius:14px;
+  --shadow: 0 6px 24px rgba(15,42,67,0.08);
+}
+
+/* ---- Global polish (non-destructive) ---- */
+html,body,#root{height:100%}
+body{
+  margin:0;
+  background:var(--foam);
+  color:var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- Card / panel ---- */
+.dw-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+
+/* ---- Inputs (keeps your markup; just add class="dw-input") ---- */
+.dw-label{
+  display:block;
+  font-size:13px;
+  color:#5B6B7E;
+  margin: 0 0 6px;
+}
+.dw-input, .dw-select, .dw-textarea{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  background:#fff;
+  padding:10px 12px;
+  font-size:14px;
+  outline:none;
+  transition:border .15s, box-shadow .15s, background .15s;
+}
+.dw-input:focus, .dw-select:focus, .dw-textarea:focus{
+  border-color:var(--tide);
+  box-shadow:0 0 0 4px var(--ring);
+}
+
+/* ---- Buttons ---- */
+.dw-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:12px 18px; border-radius:16px; font-weight:600;
+  border:1px solid transparent; cursor:pointer; transition: all .15s;
+}
+.dw-btn-primary{ background:var(--sea); color:#fff; }
+.dw-btn-primary:hover{ background:var(--tide); transform:translateY(-1px); }
+.dw-btn-ghost{ background:#fff; color:var(--sea); border-color:var(--border); }
+.dw-btn-ghost:hover{ border-color:var(--tide); }
+
+/* ---- Metric cards ---- */
+.dw-metric{ padding:14px; }
+.dw-metric .dw-cap{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#6B7C8F;}
+.dw-metric .dw-val{ font-size:22px; font-weight:700; margin-top:6px;}
+
+/* ---- Stepper ---- */
+.dw-stepper{ display:flex; align-items:center; gap:12px; }
+.dw-step{ display:flex; align-items:center; }
+.dw-bubble{
+  width:30px; height:30px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:13px; border:1px solid var(--border); background:#fff; color:#64748B;
+}
+.dw-bubble--active{ background:var(--sea); color:#fff; border-color:var(--sea); }
+.dw-steptext{ margin-left:8px; margin-right:16px; font-size:13px; color:#475569; }
+.dw-steptext--active{ color:var(--sea); font-weight:600; }
+.dw-divider{ width:36px; height:2px; background:#E2E8F0; }
+
+/* ---- Confidence meter ---- */
+.dw-conf{ margin-top:8px;}
+.dw-conf .bar{ display:flex; gap:6px; margin-top:6px;}
+.dw-conf .seg{ flex:1; height:8px; border-radius:999px; background:#E2E8F0;}
+.dw-conf .seg.on{ background:var(--mint); }
+
+/* ---- Loader (spinner) ---- */
+@keyframes spin{ to{ transform: rotate(360deg);} }
+.dw-spin{ width:22px; height:22px; border-radius:50%;
+  border:3px solid rgba(15,42,67,.18); border-top-color:var(--sea); animation: spin .8s linear infinite; }
+
+/* ---- Utility ---- */
+.dw-stack{ display:grid; gap:14px; }
+.dw-grid-2{ display:grid; gap:14px; grid-template-columns: 1fr; }
+@media(min-width:900px){ .dw-grid-2{ grid-template-columns: 1fr 1fr; } }
