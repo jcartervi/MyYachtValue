@@ -77,21 +77,7 @@ export default function BoatValuation() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="dw-card" style={{padding:"14px 18px", background:"var(--sea)", color:"#fff"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:36,height:36,borderRadius:12,background:"rgba(33,179,211,.18)",display:"grid",placeItems:"center",fontWeight:700}}>D</div>
-            <div>
-              <div style={{fontWeight:700}}>DeckWorth</div>
-              <div style={{fontSize:12,opacity:.85}}>Instant Boat Valuations</div>
-            </div>
-          </div>
-          <button className="dw-btn dw-btn-ghost">Contact</button>
-        </div>
-      </header>
-
-      <main style={{maxWidth:960, margin:"24px auto", padding:"0 16px"}}>
+      <div style={{maxWidth:960, margin:"24px auto", padding:"0 16px"}}>
         <Stepper step={currentStep} steps={["Contact", "Vessel", "Results"]} />
         
         {currentStep < 3 ? (
@@ -191,7 +177,7 @@ export default function BoatValuation() {
             </CardContent>
           </Card>
         )}
-      </main>
+      </div>
 
       {/* Footer */}
       <footer className="bg-card border-t border-border mt-16">
