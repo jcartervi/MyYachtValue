@@ -1,5 +1,6 @@
-import { type Lead, type InsertLead, type Vessel, type InsertVessel, type Estimate, type LeadActivity } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { type Lead, type InsertLead, type Vessel, type InsertVessel, type Estimate, type LeadActivity, leads, vessels, estimates, leadActivities } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Lead operations
@@ -22,131 +23,125 @@ export interface IStorage {
   getActivitiesByLeadId(leadId: string): Promise<LeadActivity[]>;
 
   // Rate limiting
-  getRequestCount(ipAddress: string, timeWindow: number): Promise<number>;
-  incrementRequestCount(ipAddress: string): Promise<void>;
+  getRequestCount(ipAddress: string, timeWindow: number, customKey?: string): Promise<number>;
+  incrementRequestCount(ipAddress: string, customKey?: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private leads: Map<string, Lead> = new Map();
-  private vessels: Map<string, Vessel> = new Map();
-  private estimates: Map<string, Estimate> = new Map();
-  private activities: Map<string, LeadActivity> = new Map();
-  private requestCounts: Map<string, { count: number; timestamp: number }> = new Map();
+export class DatabaseStorage implements IStorage {
+  private requestCounts: Map<string, { count: number; timestamp: number }> = new Map(); // Keep rate limiting in memory
 
   async createLead(leadData: InsertLead & { ipAddress: string; utmParams?: any }): Promise<Lead> {
-    const id = randomUUID();
-    const now = new Date();
-    const lead: Lead = {
-      name: leadData.name || null,
-      email: leadData.email,
-      phone: leadData.phone,
-      smsConsent: leadData.smsConsent || null,
-      city: leadData.city || null,
-      zipCode: leadData.zipCode || null,
-      ipAddress: leadData.ipAddress,
-      id,
-      tcpaTimestamp: now,
-      createdAt: now,
-      utmSource: leadData.utmParams?.utm_source || null,
-      utmMedium: leadData.utmParams?.utm_medium || null,
-      utmCampaign: leadData.utmParams?.utm_campaign || null,
-      utmTerm: leadData.utmParams?.utm_term || null,
-      utmContent: leadData.utmParams?.utm_content || null,
-    };
-    this.leads.set(id, lead);
+    const [lead] = await db
+      .insert(leads)
+      .values({
+        name: leadData.name || null,
+        email: leadData.email,
+        phone: leadData.phone,
+        smsConsent: leadData.smsConsent || false,
+        city: leadData.city || null,
+        zipCode: leadData.zipCode || null,
+        ipAddress: leadData.ipAddress,
+        utmSource: leadData.utmParams?.utm_source || null,
+        utmMedium: leadData.utmParams?.utm_medium || null,
+        utmCampaign: leadData.utmParams?.utm_campaign || null,
+        utmTerm: leadData.utmParams?.utm_term || null,
+        utmContent: leadData.utmParams?.utm_content || null,
+      })
+      .returning();
     return lead;
   }
 
   async getLead(id: string): Promise<Lead | undefined> {
-    return this.leads.get(id);
+    const [lead] = await db.select().from(leads).where(eq(leads.id, id));
+    return lead || undefined;
   }
 
   async getLeadByEmail(email: string): Promise<Lead | undefined> {
-    return Array.from(this.leads.values()).find(lead => lead.email === email);
+    const [lead] = await db.select().from(leads).where(eq(leads.email, email));
+    return lead || undefined;
   }
 
   async createVessel(vesselData: InsertVessel & { leadId: string }): Promise<Vessel> {
-    const id = randomUUID();
-    const vessel: Vessel = {
-      brand: vesselData.brand,
-      model: vesselData.model || null,
-      year: vesselData.year || null,
-      loaFt: vesselData.loaFt || null,
-      engineType: vesselData.engineType || null,
-      horsepower: vesselData.horsepower || null,
-      hours: vesselData.hours || null,
-      gyro: vesselData.gyro || null,
-      refitYear: vesselData.refitYear || null,
-      region: vesselData.region || null,
-      leadId: vesselData.leadId,
-      id,
-      createdAt: new Date(),
-    };
-    this.vessels.set(id, vessel);
+    const [vessel] = await db
+      .insert(vessels)
+      .values({
+        leadId: vesselData.leadId,
+        brand: vesselData.brand,
+        model: vesselData.model || null,
+        year: vesselData.year || null,
+        loaFt: vesselData.loaFt || null,
+        fuelType: vesselData.fuelType || null,
+        horsepower: vesselData.horsepower || null,
+        hours: vesselData.hours || null,
+        refitYear: vesselData.refitYear || null,
+        condition: vesselData.condition || 'good',
+      })
+      .returning();
     return vessel;
   }
 
   async getVessel(id: string): Promise<Vessel | undefined> {
-    return this.vessels.get(id);
+    const [vessel] = await db.select().from(vessels).where(eq(vessels.id, id));
+    return vessel || undefined;
   }
 
   async getVesselsByLeadId(leadId: string): Promise<Vessel[]> {
-    return Array.from(this.vessels.values()).filter(vessel => vessel.leadId === leadId);
+    const results = await db.select().from(vessels).where(eq(vessels.leadId, leadId));
+    return results;
   }
 
   async createEstimate(estimateData: Omit<Estimate, "id" | "createdAt">): Promise<Estimate> {
-    const id = randomUUID();
-    const estimate: Estimate = {
-      ...estimateData,
-      id,
-      createdAt: new Date(),
-    };
-    this.estimates.set(id, estimate);
+    const [estimate] = await db
+      .insert(estimates)
+      .values(estimateData)
+      .returning();
     return estimate;
   }
 
   async getEstimate(id: string): Promise<Estimate | undefined> {
-    return this.estimates.get(id);
+    const [estimate] = await db.select().from(estimates).where(eq(estimates.id, id));
+    return estimate || undefined;
   }
 
   async getEstimateByVesselId(vesselId: string): Promise<Estimate | undefined> {
-    return Array.from(this.estimates.values()).find(estimate => estimate.vesselId === vesselId);
+    const [estimate] = await db.select().from(estimates).where(eq(estimates.vesselId, vesselId));
+    return estimate || undefined;
   }
 
   async createActivity(activityData: Omit<LeadActivity, "id" | "createdAt">): Promise<LeadActivity> {
-    const id = randomUUID();
-    const activity: LeadActivity = {
-      ...activityData,
-      id,
-      createdAt: new Date(),
-    };
-    this.activities.set(id, activity);
+    const [activity] = await db
+      .insert(leadActivities)
+      .values(activityData)
+      .returning();
     return activity;
   }
 
   async getActivitiesByLeadId(leadId: string): Promise<LeadActivity[]> {
-    return Array.from(this.activities.values()).filter(activity => activity.leadId === leadId);
+    const results = await db.select().from(leadActivities).where(eq(leadActivities.leadId, leadId));
+    return results;
   }
 
-  async getRequestCount(ipAddress: string, timeWindow: number): Promise<number> {
-    const record = this.requestCounts.get(ipAddress);
+  async getRequestCount(ipAddress: string, timeWindow: number, customKey?: string): Promise<number> {
+    const key = customKey || ipAddress;
+    const record = this.requestCounts.get(key);
     if (!record) return 0;
     
     const now = Date.now();
     if (now - record.timestamp > timeWindow) {
-      this.requestCounts.delete(ipAddress);
+      this.requestCounts.delete(key);
       return 0;
     }
     
     return record.count;
   }
 
-  async incrementRequestCount(ipAddress: string): Promise<void> {
+  async incrementRequestCount(ipAddress: string, customKey?: string): Promise<void> {
+    const key = customKey || ipAddress;
     const now = Date.now();
-    const record = this.requestCounts.get(ipAddress);
+    const record = this.requestCounts.get(key);
     
     if (!record) {
-      this.requestCounts.set(ipAddress, { count: 1, timestamp: now });
+      this.requestCounts.set(key, { count: 1, timestamp: now });
     } else {
       record.count++;
       record.timestamp = now;
@@ -154,4 +149,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

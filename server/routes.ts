@@ -7,11 +7,20 @@ import { estimatorService } from "./services/estimator";
 import { twilioService } from "./services/twilio";
 import { pipedriveService } from "./services/pipedrive";
 import { submitFormRateLimit, generalRateLimit } from "./middleware/rateLimit";
+import { apiKeyAuth, createAdminRateLimit } from "./middleware/apiKeyAuth";
 import { openAIHealth } from "./utils/ai-utils";
+import { WebIndexerService } from "./services/web-indexer";
+import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Apply general rate limiting to all API routes
-  app.use("/api", generalRateLimit);
+  // Apply general rate limiting to all API routes except admin endpoints
+  app.use("/api", (req, res, next) => {
+    // Skip general rate limiting for admin endpoints
+    if (req.path === '/refresh-index' || req.path === '/index/metrics' || req.path.startsWith('/lead/')) {
+      return next();
+    }
+    return generalRateLimit(req, res, next);
+  });
 
   // CORS configuration
   app.use("/api", (req, res, next) => {
@@ -273,14 +282,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get lead activities (for debugging/admin)
-  app.get("/api/lead/:id/activities", async (req: Request, res: Response) => {
+  // Create admin rate limiter once at the top
+  const adminRateLimit = createAdminRateLimit();
+
+  // Get lead activities (Admin endpoint - requires authentication)
+  app.get("/api/lead/:id/activities", apiKeyAuth, adminRateLimit, async (req: Request, res: Response) => {
+    const clientIp = req.ip || req.connection.remoteAddress || "unknown";
+    const leadId = req.params.id;
+    
     try {
-      const activities = await storage.getActivitiesByLeadId(req.params.id);
-      res.json({ activities });
+      // Validate lead ID format
+      if (!leadId || typeof leadId !== 'string' || leadId.trim().length === 0) {
+        console.warn(`[Security] Invalid lead activities request from ${clientIp}: missing or invalid lead ID`);
+        return res.status(400).json({ error: "Valid lead ID is required" });
+      }
+      
+      console.log(`[Admin] Lead activities requested by ${clientIp} for lead: ${leadId}`);
+      
+      const activities = await storage.getActivitiesByLeadId(leadId.trim());
+      
+      console.log(`[Admin] Lead activities delivered to ${clientIp}: ${activities.length} activities for lead ${leadId}`);
+      
+      res.json({ 
+        success: true,
+        leadId: leadId,
+        count: activities.length,
+        activities 
+      });
     } catch (error) {
-      console.error("Get activities error:", error);
-      res.status(500).json({ error: "Failed to fetch activities" });
+      console.error(`[Admin] Get activities error for ${clientIp}, lead ${leadId}:`, error);
+      res.status(500).json({ 
+        error: "Failed to fetch activities",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // AI-First Web Indexer API endpoints
+  const webIndexer = new WebIndexerService(db);
+
+  // Refresh comparable boat index (Admin endpoint - requires authentication)
+  app.post("/api/refresh-index", apiKeyAuth, adminRateLimit, async (req: Request, res: Response) => {
+    const clientIp = req.ip || req.connection.remoteAddress || "unknown";
+    const startTime = Date.now();
+    
+    try {
+      const { model, brand, year, loaFt, fuelType, cap = 18, useAI = true } = req.body;
+      
+      // Enhanced input validation
+      if (!model || typeof model !== 'string' || model.trim().length === 0) {
+        console.warn(`[Security] Invalid refresh-index request from ${clientIp}: missing or invalid model`);
+        return res.status(400).json({ 
+          error: "Model is required and must be a non-empty string"
+        });
+      }
+      
+      if (cap && (typeof cap !== 'number' || cap < 1 || cap > 50)) {
+        console.warn(`[Security] Invalid refresh-index request from ${clientIp}: invalid cap parameter`);
+        return res.status(400).json({ 
+          error: "Cap must be a number between 1 and 50"
+        });
+      }
+      
+      if (year && (typeof year !== 'number' || year < 1900 || year > new Date().getFullYear() + 1)) {
+        console.warn(`[Security] Invalid refresh-index request from ${clientIp}: invalid year parameter`);
+        return res.status(400).json({ 
+          error: "Year must be a valid year"
+        });
+      }
+
+      // Log the admin operation
+      console.log(`[Admin] Index refresh initiated by ${clientIp} for ${brand || ''} ${model} ${year || ''} (cap: ${cap}, useAI: ${useAI})`);
+
+      const estimateRequest = {
+        model: model.trim(),
+        brand: brand?.trim() || null,
+        year,
+        loaFt,
+        fuelType
+      };
+
+      const added = await webIndexer.refreshIndex(estimateRequest, cap, useAI);
+      const duration = Date.now() - startTime;
+      
+      // Log successful completion
+      console.log(`[Admin] Index refresh completed in ${duration}ms: added ${added} comparables for ${clientIp}`);
+      
+      res.json({ 
+        success: true, 
+        added, 
+        duration: duration,
+        message: `Successfully added ${added} new comparables to the index` 
+      });
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[Admin] Refresh index error for ${clientIp} after ${duration}ms:`, error);
+      res.status(500).json({ 
+        error: "Failed to refresh index",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get index metrics (Admin endpoint - requires authentication)
+  app.get("/api/index/metrics", apiKeyAuth, adminRateLimit, async (req: Request, res: Response) => {
+    const clientIp = req.ip || req.connection.remoteAddress || "unknown";
+    const startTime = Date.now();
+    
+    try {
+      console.log(`[Admin] Index metrics requested by ${clientIp}`);
+      
+      const metrics = await webIndexer.getIndexMetrics();
+      const duration = Date.now() - startTime;
+      
+      console.log(`[Admin] Index metrics delivered to ${clientIp} in ${duration}ms`);
+      
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        duration: duration,
+        ...metrics,
+        message: `Total: ${metrics.totalComparables} comparables, Recent: ${metrics.recentComparables} from last 7 days`
+      });
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[Admin] Get index metrics error for ${clientIp} after ${duration}ms:`, error);
+      res.status(500).json({ 
+        error: "Failed to get index metrics",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

@@ -1,6 +1,7 @@
 import { Vessel, PREMIUM_BRANDS, PREMIUM_YEAR_THRESHOLD, PREMIUM_HOURS_THRESHOLD } from "@shared/schema";
 import { iybaService } from "./iyba";
 import { AIEstimatorService } from "./ai-estimator";
+import { db } from "../db";
 
 export interface EstimateResult {
   low: number;
@@ -25,7 +26,7 @@ export interface EstimatorService {
 }
 
 class EstimatorServiceImpl implements EstimatorService {
-  private aiEstimator = new AIEstimatorService();
+  private aiEstimator = new AIEstimatorService(db);
 
   async generateEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<EstimateResult> {
     // Try AI estimation first

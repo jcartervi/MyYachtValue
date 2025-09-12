@@ -1,6 +1,9 @@
 import { Vessel } from "@shared/schema";
 import { callOpenAI, callOpenAIResponses, AIResponse } from "../utils/ai-utils";
 import { iybaService, IYBAComparable } from "./iyba-api";
+import { WebIndexerService } from "./web-indexer";
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as schema from '../../shared/schema';
 
 export interface AIComparable {
   title: string;
@@ -17,8 +20,9 @@ export interface AIComparable {
 export interface MarketDataSummary {
   realComparables: number;
   syntheticComparables: number;
+  webComparables: number;
   iybaStatus: 'success' | 'partial' | 'failed';
-  dataSource: 'iyba' | 'synthetic' | 'mixed';
+  dataSource: 'iyba' | 'synthetic' | 'mixed' | 'web' | 'ai_first';
 }
 
 export interface AIEstimate {
@@ -35,9 +39,17 @@ export interface AIEstimate {
 }
 
 export class AIEstimatorService {
+  private webIndexer?: WebIndexerService;
+
+  constructor(db?: NodePgDatabase<typeof schema>) {
+    if (db) {
+      this.webIndexer = new WebIndexerService(db);
+    }
+  }
+
   async generateEstimate(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<AIEstimate> {
-    // Get real market data from IYBA first
-    const marketDataResult = await this.getMarketData(vessel);
+    // Get real market data using AI-first approach: web indexer first, then IYBA fallback
+    const marketDataResult = await this.getAIFirstMarketData(vessel);
     
     // Try AI estimation with real market data
     const valuationResult = await this.generateAIValuation(vessel, marketDataResult);
@@ -57,6 +69,151 @@ export class AIEstimatorService {
     }
   }
 
+  // AI-first market data gathering: use web indexer first, fallback to IYBA
+  private async getAIFirstMarketData(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<{
+    comparables: AIComparable[];
+    summary: MarketDataSummary;
+  }> {
+    console.log(`Getting AI-first market data for ${vessel.year || ''} ${vessel.brand} ${vessel.model || ''} (${vessel.loaFt || '?'}ft)`);
+    
+    const estimateRequest = {
+      model: vessel.model || '',
+      brand: vessel.brand,
+      year: vessel.year || undefined,
+      loaFt: vessel.loaFt || undefined,
+      fuelType: vessel.fuelType || undefined
+    };
+
+    let webComparables: AIComparable[] = [];
+    let webDataCount = 0;
+
+    // First, try to get recent indexed web data
+    if (this.webIndexer) {
+      try {
+        const recentComps = await this.webIndexer.getRecentComparables(estimateRequest, 14, 12);
+        
+        // Convert to AIComparable format
+        webComparables = recentComps.map(comp => ({
+          title: comp.title,
+          ask: comp.ask || 0,
+          year: comp.year || 0,
+          loa: comp.loa || 0,
+          region: comp.region || 'Unknown',
+          brand: comp.brand || vessel.brand,
+          model: comp.model || '',
+          fuel_type: comp.fuelType || 'unknown'
+        })).filter(comp => comp.ask > 0); // Only include comps with valid prices
+
+        webDataCount = webComparables.length;
+        console.log(`Found ${webDataCount} recent web comparables`);
+
+        // If we don't have enough recent data, refresh the index
+        if (webDataCount < 6) {
+          console.log('Insufficient recent web data, refreshing index...');
+          const addedCount = await this.webIndexer.refreshIndex(estimateRequest, 18, true);
+          console.log(`Added ${addedCount} new comparables to index`);
+          
+          // Re-query for fresh data
+          const freshComps = await this.webIndexer.getRecentComparables(estimateRequest, 14, 12);
+          webComparables = freshComps.map(comp => ({
+            title: comp.title,
+            ask: comp.ask || 0,
+            year: comp.year || 0,
+            loa: comp.loa || 0,
+            region: comp.region || 'Unknown',
+            brand: comp.brand || vessel.brand,
+            model: comp.model || '',
+            fuel_type: comp.fuelType || 'unknown'
+          })).filter(comp => comp.ask > 0);
+          
+          webDataCount = webComparables.length;
+          console.log(`After refresh: ${webDataCount} web comparables available`);
+        }
+      } catch (error) {
+        console.error('Error getting web comparables:', error);
+      }
+    }
+
+    // If web data is insufficient, supplement with IYBA data
+    let iybaComparables: AIComparable[] = [];
+    let iybaDataCount = 0;
+    
+    if (webDataCount < 3) {
+      try {
+        const iybaData = await iybaService.searchComparablesForVessel(
+          vessel.brand,
+          vessel.model || undefined,
+          vessel.year || undefined,
+          vessel.loaFt || undefined,
+          vessel.fuelType || undefined
+        );
+        
+        iybaComparables = iybaData.map((comp: IYBAComparable) => ({
+          title: comp.title,
+          ask: comp.ask,
+          year: comp.year || 0,
+          loa: comp.loa || 0,
+          region: comp.region,
+          brand: comp.brand,
+          model: comp.model,
+          fuel_type: comp.engine_type || 'unknown'
+        }));
+        
+        iybaDataCount = iybaComparables.length;
+        console.log(`IYBA returned ${iybaDataCount} comparables`);
+      } catch (error) {
+        console.error('Error getting IYBA comparables:', error);
+      }
+    }
+
+    // Combine web and IYBA data
+    const allRealComparables = [...webComparables, ...iybaComparables];
+    
+    let summary: MarketDataSummary;
+    let finalComparables: AIComparable[];
+
+    if (allRealComparables.length >= 3) {
+      // We have enough real data
+      finalComparables = allRealComparables.slice(0, 12);
+      summary = {
+        realComparables: allRealComparables.length,
+        syntheticComparables: 0,
+        webComparables: webDataCount,
+        iybaStatus: iybaDataCount > 0 ? 'success' : 'failed',
+        dataSource: webDataCount > 0 ? 'ai_first' : 'iyba'
+      };
+    } else if (allRealComparables.length > 0) {
+      // Mix real data with synthetic
+      const syntheticComps = this.generateSyntheticComparables(vessel);
+      const neededSynthetic = Math.max(0, 8 - allRealComparables.length);
+      finalComparables = [...allRealComparables, ...syntheticComps.slice(0, neededSynthetic)];
+      
+      summary = {
+        realComparables: allRealComparables.length,
+        syntheticComparables: neededSynthetic,
+        webComparables: webDataCount,
+        iybaStatus: 'partial',
+        dataSource: 'mixed'
+      };
+    } else {
+      // No real data, use synthetic
+      finalComparables = this.generateSyntheticComparables(vessel);
+      summary = {
+        realComparables: 0,
+        syntheticComparables: finalComparables.length,
+        webComparables: 0,
+        iybaStatus: 'failed',
+        dataSource: 'synthetic'
+      };
+    }
+
+    return {
+      comparables: finalComparables,
+      summary
+    };
+  }
+
+  // Legacy method kept for backward compatibility
   private async getMarketData(vessel: Omit<Vessel, "id" | "leadId" | "createdAt">): Promise<{
     comparables: AIComparable[];
     summary: MarketDataSummary;
@@ -95,6 +252,7 @@ export class AIEstimatorService {
         summary = {
           realComparables: realComparables.length,
           syntheticComparables: 0,
+          webComparables: 0,
           iybaStatus: 'success',
           dataSource: 'iyba'
         };
@@ -106,6 +264,7 @@ export class AIEstimatorService {
         summary = {
           realComparables: realComparables.length,
           syntheticComparables: 8 - realComparables.length,
+          webComparables: 0,
           iybaStatus: 'partial',
           dataSource: 'mixed'
         };
@@ -116,6 +275,7 @@ export class AIEstimatorService {
         summary = {
           realComparables: 0,
           syntheticComparables: allComparables.length,
+          webComparables: 0,
           iybaStatus: 'failed',
           dataSource: 'synthetic'
         };
@@ -136,6 +296,7 @@ export class AIEstimatorService {
         summary: {
           realComparables: 0,
           syntheticComparables: syntheticComparables.length,
+          webComparables: 0,
           iybaStatus: 'failed',
           dataSource: 'synthetic'
         }
