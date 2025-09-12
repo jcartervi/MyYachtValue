@@ -10,7 +10,7 @@ import { submitFormRateLimit, generalRateLimit } from "./middleware/rateLimit";
 import { openAIHealth } from "./utils/ai-utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Apply general rate limiting to all API routes except admin endpoints
+  // Apply general rate limiting to all API routes except lead activity endpoints
   app.use("/api", (req, res, next) => {
     // Skip general rate limiting for admin endpoints
     if (req.path.startsWith('/lead/')) {
@@ -279,11 +279,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create admin rate limiter once at the top
-  const adminRateLimit = createAdminRateLimit();
 
-  // Get lead activities (Admin endpoint - requires authentication)
-  app.get("/api/lead/:id/activities", apiKeyAuth, adminRateLimit, async (req: Request, res: Response) => {
+  // Get lead activities (for debugging/admin)
+  app.get("/api/lead/:id/activities", async (req: Request, res: Response) => {
     const clientIp = req.ip || req.connection.remoteAddress || "unknown";
     const leadId = req.params.id;
     
