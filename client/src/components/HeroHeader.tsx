@@ -17,10 +17,7 @@ export default function HeroHeader() {
       {/* Top bar / logo slot */}
       <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Replace with your <img src="/logo.svg" /> when ready */}
-          <div className="h-10 w-10 rounded-xl bg-white/90 backdrop-blur text-black font-semibold grid place-items-center">
-            DW
-          </div>
+          <img src="/your-logo.svg" alt="DeckWorth" className="h-10 w-auto" />
           <div className="text-white/90">
             <div className="font-semibold leading-none text-white">DeckWorth</div>
             <div className="text-xs opacity-80">Instant Boat Valuations</div>
