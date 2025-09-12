@@ -323,9 +323,10 @@ export default function BoatForm({
                   name="brand"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Boat Brand *</FormLabel>
+                      <FormLabel className="dw-label">Boat Brand *</FormLabel>
                       <FormControl>
                         <Input 
+                          className="dw-input"
                           placeholder="Sunseeker, Azimut, Princess, etc." 
                           {...field} 
                           data-testid="input-brand"
@@ -387,9 +388,10 @@ export default function BoatForm({
                     name="model"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Model</FormLabel>
+                        <FormLabel className="dw-label">Model</FormLabel>
                         <FormControl>
                           <Input 
+                            className="dw-input"
                             placeholder="68 Sport Boat" 
                             {...field} 
                             data-testid="input-model"
