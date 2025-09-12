@@ -10,7 +10,6 @@ export default function HeroHeader() {
           alt="Premium yacht underway at sunset"
           className="h-full w-full object-cover"
           loading="eager"
-          fetchPriority="high"
         />
         {/* Overlay gradient for readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/60" />
