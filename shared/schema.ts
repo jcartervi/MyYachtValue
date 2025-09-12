@@ -58,22 +58,6 @@ export const leadActivities = pgTable("lead_activities", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const comparables = pgTable("comparables", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  status: text("status").default("active"), // active | inactive
-  title: text("title").notNull(),
-  model: text("model"), // vessel model for filtering
-  year: integer("year"),
-  loa: integer("loa"), // length overall in feet
-  ask: integer("ask"), // asking price in USD
-  url: text("url").notNull(),
-  region: text("region"),
-  brand: text("brand"),
-  fuelType: text("fuel_type"),
-  source: text("source").default("web"), // web | iyba | manual
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 // Zod schemas for validation
 export const insertLeadSchema = createInsertSchema(leads).omit({
@@ -125,10 +109,5 @@ export type Vessel = typeof vessels.$inferSelect;
 export type InsertVessel = z.infer<typeof insertVesselSchema>;
 export type Estimate = typeof estimates.$inferSelect;
 export type LeadActivity = typeof leadActivities.$inferSelect;
-export type Comparable = typeof comparables.$inferSelect;
 export type CreateEstimateRequest = z.infer<typeof createEstimateRequestSchema>;
 
-// Premium lead detection criteria
-export const PREMIUM_BRANDS = ["sunseeker", "azimut", "princess", "ferretti", "pershing", "riva", "benetti", "lurssen", "feadship"];
-export const PREMIUM_YEAR_THRESHOLD = 2018;
-export const PREMIUM_HOURS_THRESHOLD = 500;
