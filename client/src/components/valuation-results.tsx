@@ -31,9 +31,18 @@ interface ValuationData {
       year: number;
       loa: number;
       region: string;
+      brand?: string;
+      model?: string;
+      fuel_type?: string;
     }>;
     isPremiumLead: boolean;
     aiStatus?: string;
+    marketData?: {
+      realComparables: number;
+      syntheticComparables: number;
+      iybaStatus: 'success' | 'partial' | 'failed';
+      dataSource: 'iyba' | 'synthetic' | 'mixed';
+    };
   };
 }
 
@@ -56,7 +65,28 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
               <h2 className="text-2xl font-bold mb-2" data-testid="text-valuation-title">
                 Your Boat Valuation
               </h2>
-              <p className="text-blue-100">Based on current market conditions and comparable sales</p>
+              <div className="flex items-center gap-3 mb-2">
+                <p className="text-blue-100">Based on current market conditions and comparable sales</p>
+                {estimate.marketData && (
+                  <div className="flex gap-2">
+                    {estimate.marketData.dataSource === 'iyba' && (
+                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium" data-testid="badge-iyba-data">
+                        Live Market Data
+                      </span>
+                    )}
+                    {estimate.marketData.dataSource === 'mixed' && (
+                      <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium" data-testid="badge-mixed-data">
+                        Market + AI Analysis
+                      </span>
+                    )}
+                    {estimate.marketData.realComparables > 0 && (
+                      <span className="bg-white bg-opacity-20 text-white text-xs px-2 py-1 rounded-full font-medium" data-testid="badge-real-comps">
+                        {estimate.marketData.realComparables} Real Sales
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="text-right">
               <div className="bg-white bg-opacity-20 rounded-lg px-3 py-1">
@@ -160,6 +190,33 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
         {/* Market Analysis */}
         <CardContent className="p-6 border-b">
           <h3 className="text-lg font-semibold text-foreground mb-4">Market Analysis</h3>
+          
+          {/* Market Data Insights */}
+          {estimate.marketData && (
+            <div className="grid md:grid-cols-3 gap-4 mb-6 p-4 bg-muted rounded-lg">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary" data-testid="text-real-comparables">
+                  {estimate.marketData.realComparables}
+                </div>
+                <div className="text-sm text-muted-foreground">Real Market Sales</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary" data-testid="text-data-source">
+                  {estimate.marketData.dataSource === 'iyba' ? 'IYBA' : 
+                   estimate.marketData.dataSource === 'mixed' ? 'MIXED' : 'AI'}
+                </div>
+                <div className="text-sm text-muted-foreground">Data Source</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary" data-testid="text-iyba-status">
+                  {estimate.marketData.iybaStatus === 'success' ? '✓' : 
+                   estimate.marketData.iybaStatus === 'partial' ? '~' : '✗'}
+                </div>
+                <div className="text-sm text-muted-foreground">Market Coverage</div>
+              </div>
+            </div>
+          )}
+          
           <div className="prose prose-sm max-w-none">
             <p className="text-muted-foreground leading-relaxed" data-testid="text-narrative">
               {estimate.narrative}
@@ -169,33 +226,67 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
 
         {/* Comparable Sales */}
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Recent Comparable Sales</h3>
-          <div className="space-y-4">
-            {estimate.comps.map((comp, index) => (
-              <div 
-                key={index} 
-                className="flex items-center justify-between p-4 bg-muted rounded-lg"
-                data-testid={`comp-${index}`}
-              >
-                <div className="flex-1">
-                  <h4 className="font-semibold text-foreground" data-testid={`comp-title-${index}`}>
-                    {comp.title}
-                  </h4>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    <span data-testid={`comp-details-${index}`}>
-                      {comp.year} • {comp.loa}ft • {comp.region}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-lg text-foreground" data-testid={`comp-price-${index}`}>
-                    ${comp.ask.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Asking Price</div>
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground">Recent Comparable Sales</h3>
+            {estimate.marketData && estimate.marketData.realComparables > 0 && (
+              <span className="text-sm text-green-600 font-medium bg-green-50 px-2 py-1 rounded" data-testid="badge-live-data">
+                Live IYBA Data
+              </span>
+            )}
           </div>
+          <div className="space-y-4">
+            {estimate.comps.map((comp, index) => {
+              const isRealComparable = estimate.marketData && index < estimate.marketData.realComparables;
+              return (
+                <div 
+                  key={index} 
+                  className={`flex items-center justify-between p-4 rounded-lg ${
+                    isRealComparable ? 'bg-green-50 border border-green-200' : 'bg-muted'
+                  }`}
+                  data-testid={`comp-${index}`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-semibold text-foreground" data-testid={`comp-title-${index}`}>
+                        {comp.title}
+                      </h4>
+                      {isRealComparable && (
+                        <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-medium" data-testid={`comp-badge-${index}`}>
+                          Real Sale
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <span data-testid={`comp-details-${index}`}>
+                        {comp.year} • {comp.loa}ft • {comp.region}
+                        {comp.brand && ` • ${comp.brand}`}
+                        {comp.fuel_type && comp.fuel_type !== 'unknown' && ` • ${comp.fuel_type === 'gas' ? 'Gas' : 'Diesel'}`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-lg text-foreground" data-testid={`comp-price-${index}`}>
+                      ${comp.ask.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {isRealComparable ? 'Market Price' : 'Asking Price'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {estimate.marketData && estimate.marketData.realComparables === 0 && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center text-blue-800">
+                <i className="fas fa-info-circle mr-2" />
+                <span className="text-sm">
+                  Limited market data available for this vessel. Analysis includes AI-generated comparables based on similar vessels.
+                </span>
+              </div>
+            </div>
+          )}
         </CardContent>
 
         {/* Actions */}

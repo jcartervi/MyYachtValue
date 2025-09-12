@@ -206,24 +206,24 @@ export default function BoatValuation() {
             <CardContent className="p-8">
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold mb-2">Why Trust AI Boat Valuation?</h2>
-                <p className="text-muted-foreground">Your boat valuation is powered by advanced AI and real market data</p>
+                <p className="text-muted-foreground">Powered by live marine market data from the IYBA broker network</p>
               </div>
               <div className="grid md:grid-cols-4 gap-8 text-center">
                 <div>
-                  <div className="text-3xl font-bold text-primary mb-2">10K+</div>
-                  <div className="text-sm text-muted-foreground">Valuations Generated</div>
+                  <div className="text-3xl font-bold text-primary mb-2">2K+</div>
+                  <div className="text-sm text-muted-foreground">IYBA Brokers</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-primary mb-2">$5.2B</div>
-                  <div className="text-sm text-muted-foreground">Analyzed Value</div>
+                  <div className="text-3xl font-bold text-primary mb-2">Live</div>
+                  <div className="text-sm text-muted-foreground">Market Data</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-primary mb-2">24/7</div>
-                  <div className="text-sm text-muted-foreground">Available</div>
+                  <div className="text-3xl font-bold text-primary mb-2">Real</div>
+                  <div className="text-sm text-muted-foreground">Comparable Sales</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-primary mb-2">98%</div>
-                  <div className="text-sm text-muted-foreground">Client Satisfaction</div>
+                  <div className="text-3xl font-bold text-primary mb-2">AI</div>
+                  <div className="text-sm text-muted-foreground">Market Analysis</div>
                 </div>
               </div>
             </CardContent>
