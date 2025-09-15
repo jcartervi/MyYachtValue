@@ -45,6 +45,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  app.get("/health/openai", (_req: Request, res: Response) => {
+    res.json({ ok: true, model: process.env.OPENAI_MODEL ?? null });
+  });
+
   // OpenAI health check endpoint
   app.get("/api/health/openai", (req: Request, res: Response) => {
     const health = openAIHealth();
