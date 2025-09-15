@@ -1,4 +1,4 @@
-import DeckWorthLogo from "@/components/DeckWorthLogo";
+import HullPriceLogo from "@/components/HullPriceLogo";
 
 export default function HeroHeader() {
   return (
@@ -18,9 +18,9 @@ export default function HeroHeader() {
       {/* Top bar / logo slot */}
       <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <DeckWorthLogo size={40} />
+          <HullPriceLogo size={40} />
           <div className="text-white/90">
-            <div className="font-semibold leading-none text-white">DeckWorth</div>
+            <div className="font-semibold leading-none text-white">HullPrice</div>
             <div className="text-xs opacity-80">Instant Boat Valuations</div>
           </div>
         </div>
