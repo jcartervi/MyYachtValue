@@ -115,6 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { leadData, vesselData, turnstileToken, utmParams } = validationResult.data;
+      const { make: providedMake, model: providedModel, ...vesselPayload } = vesselData;
 
       // Verify Turnstile token
       const turnstileResult = await turnstileService.verifyToken(turnstileToken, clientIp);
@@ -140,27 +141,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create vessel record
       const vessel = await storage.createVessel({
-        ...vesselData,
+        ...vesselPayload,
         leadId: lead.id,
       });
 
-      // Parse makeModel into brand and model for the estimator
-      const makeModelParts = vesselData.makeModel.split(' ');
-      const brand = makeModelParts[0] || '';
-      const model = makeModelParts.slice(1).join(' ') || null;
+      // Parse make/model information for the estimator payload
+      const normalizedMakeModel = vesselPayload.makeModel.trim();
+      const makeModelParts = normalizedMakeModel.split(/\s+/);
+      const fallbackMake = makeModelParts[0] || '';
+      const fallbackModel = makeModelParts.slice(1).join(' ').trim();
+      const make = (providedMake?.trim() || fallbackMake) ?? '';
+      const model = providedModel?.trim() || (fallbackModel.length > 0 ? fallbackModel : null);
 
       // Generate valuation estimate - convert undefined to null for estimator
       const estimateInputData = {
-        brand,
+        make,
         model,
-        makeModel: vesselData.makeModel,
-        year: vesselData.year || null,
-        loaFt: vesselData.loaFt || null,
-        fuelType: vesselData.fuelType || null,
+        makeModel: vesselPayload.makeModel,
+        year: vesselPayload.year ?? null,
+        loaFt: vesselPayload.loaFt ?? null,
+        fuelType: vesselPayload.fuelType ?? null,
         horsepower: null, // No longer collected
-        hours: null, // No longer collected
+        hours: vesselPayload.hours ?? null,
         refitYear: null, // No longer collected
-        condition: vesselData.condition || "good",
+        condition: vesselPayload.condition ?? "good",
       };
       const estimateResult = await estimatorService.generateEstimate(estimateInputData);
 
@@ -200,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Map vessel data to custom fields (configure field keys in environment)
           const customFields: Record<string, any> = {};
           
-          if (process.env.PIPEDRIVE_FIELD_BRAND) customFields[process.env.PIPEDRIVE_FIELD_BRAND] = brand;
+          if (process.env.PIPEDRIVE_FIELD_BRAND) customFields[process.env.PIPEDRIVE_FIELD_BRAND] = make;
           if (process.env.PIPEDRIVE_FIELD_MODEL) customFields[process.env.PIPEDRIVE_FIELD_MODEL] = model;
           if (process.env.PIPEDRIVE_FIELD_YEAR) customFields[process.env.PIPEDRIVE_FIELD_YEAR] = vessel.year;
           if (process.env.PIPEDRIVE_FIELD_LOA) customFields[process.env.PIPEDRIVE_FIELD_LOA] = vessel.loaFt;
@@ -259,6 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           loaFt: vessel.loaFt,
           fuelType: vessel.fuelType,
           condition: vessel.condition,
+          hours: vessel.hours,
         },
         estimate: {
           id: estimate.id,

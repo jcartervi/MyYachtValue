@@ -71,6 +71,7 @@ export class DatabaseStorage implements IStorage {
         loaFt: vesselData.loaFt || null,
         fuelType: vesselData.fuelType || null,
         condition: vesselData.condition || 'good',
+        hours: vesselData.hours ?? null,
       })
       .returning();
     return vessel;
