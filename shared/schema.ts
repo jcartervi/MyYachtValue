@@ -29,6 +29,7 @@ export const vessels = pgTable("vessels", {
   loaFt: real("loa_ft"),
   fuelType: text("fuel_type"), // gas | diesel | electric | other
   condition: text("condition").default("good"), // project | fair | average | good | excellent
+  hours: integer("hours"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -79,11 +80,22 @@ export const insertVesselSchema = createInsertSchema(vessels).omit({
   loaFt: z.number().min(20, "Length must be at least 20 feet").max(500, "Length cannot exceed 500 feet").optional(),
   fuelType: z.enum(["gas", "diesel", "electric", "other"]).optional(),
   condition: z.enum(["project", "fair", "average", "good", "excellent"]).default("good"),
+  hours: z
+    .number({ invalid_type_error: "Engine hours must be a number" })
+    .int("Engine hours must be a whole number")
+    .min(0, "Engine hours must be at least 0")
+    .max(20000, "Engine hours cannot exceed 20,000")
+    .optional(),
+});
+
+const vesselRequestSchema = insertVesselSchema.extend({
+  make: z.string().optional(),
+  model: z.string().optional(),
 });
 
 export const createEstimateRequestSchema = z.object({
   leadData: insertLeadSchema,
-  vesselData: insertVesselSchema,
+  vesselData: vesselRequestSchema,
   turnstileToken: z.string().min(1, "Please complete the security verification"),
   utmParams: z.object({
     utm_source: z.string().optional(),

@@ -27,6 +27,7 @@ interface FormData {
   loaFt: string;
   fuelType: string;
   condition: string;
+  hours: string;
 }
 
 interface BoatFormProps {
@@ -64,6 +65,7 @@ export default function BoatForm({
       loaFt: "",
       fuelType: "",
       condition: "good",
+      hours: "",
     },
   });
 
@@ -155,6 +157,16 @@ export default function BoatForm({
         onLoadingChange(true);
 
         // Prepare request data
+        const trimmedMakeModel = data.makeModel.trim();
+        const [primaryMake, ...modelParts] = trimmedMakeModel.split(/\s+/);
+        const derivedMake = primaryMake || undefined;
+        const derivedModel = modelParts.join(" ").trim();
+        const normalizedModel = derivedModel.length > 0 ? derivedModel : undefined;
+        const trimmedHours = data.hours.trim();
+        const parsedHours = trimmedHours === "" ? undefined : Number(trimmedHours);
+        const normalizedHours =
+          parsedHours === undefined || Number.isNaN(parsedHours) ? undefined : parsedHours;
+
         const requestData = {
           leadData: {
             name: data.name || undefined,
@@ -166,10 +178,13 @@ export default function BoatForm({
           },
           vesselData: {
             makeModel: data.makeModel,
+            make: derivedMake,
+            model: normalizedModel,
             year: data.year ? parseInt(data.year) : undefined,
             loaFt: data.loaFt ? parseFloat(data.loaFt) : undefined,
             fuelType: data.fuelType || undefined,
             condition: data.condition,
+            hours: normalizedHours,
           },
           turnstileToken,
           utmParams,
@@ -460,6 +475,33 @@ export default function BoatForm({
                           <SelectItem value="excellent">Excellent</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="hours"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="hp-label">Engine Hours (total)</FormLabel>
+                      <FormControl>
+                        <Input
+                          className="hp-input"
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={20000}
+                          step={10}
+                          placeholder="850"
+                          {...field}
+                          data-testid="input-hours"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        If twin engines, enter the higher reading (we’ll normalize).
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
