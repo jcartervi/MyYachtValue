@@ -1,8 +1,13 @@
 import OpenAI from "openai";
 
+if (!process.env.OPENAI_API_KEY && !process.env.OPENAI_API_KEY2) {
+  console.error("Missing OPENAI_API_KEY");
+}
+
 // Support both old and new API keys
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY2 || process.env.OPENAI_API_KEY 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY2 || process.env.OPENAI_API_KEY,
+  baseURL: "https://api.openai.com/v1",
 });
 
 export interface AIResponse {
