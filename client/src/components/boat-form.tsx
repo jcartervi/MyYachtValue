@@ -47,6 +47,7 @@ export default function BoatForm({
   utmParams 
 }: BoatFormProps) {
   const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const isTurnstileConfigured = Boolean(import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY);
   const { toast } = useToast();
   
   const form = useForm<FormData>({
@@ -95,11 +96,11 @@ export default function BoatForm({
   // Initialize Turnstile when component mounts
   useEffect(() => {
     // Skip Turnstile if not configured (development mode)
-    if (!import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY) {
+    if (!isTurnstileConfigured) {
       setTurnstileToken("dev-bypass-token");
       return;
     }
-    
+
     if (currentStep === 2 && typeof window !== "undefined" && (window as any).turnstile) {
       (window as any).turnstile.render("#turnstile-widget", {
         sitekey: import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY,
@@ -141,7 +142,7 @@ export default function BoatForm({
     }
 
     if (currentStep === 2) {
-      if (!turnstileToken) {
+      if (isTurnstileConfigured && !turnstileToken) {
         toast({
           title: "Security Verification Required",
           description: "Please complete the security verification.",
@@ -207,17 +208,17 @@ export default function BoatForm({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           {currentStep === 1 && (
-            <div className="dw-stack">
+            <div className="hp-stack">
               <h2 style={{fontSize:20, fontWeight:700, color:"var(--ink)", marginBottom:8}}>Contact Information</h2>
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="dw-label">Name (Optional)</FormLabel>
+                      <FormLabel className="hp-label">Name (Optional)</FormLabel>
                       <FormControl>
                         <Input 
-                          className="dw-input"
+                          className="hp-input"
                           placeholder="Your full name" 
                           {...field} 
                           data-testid="input-name"
@@ -233,10 +234,10 @@ export default function BoatForm({
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="dw-label">Email Address *</FormLabel>
+                      <FormLabel className="hp-label">Email Address *</FormLabel>
                       <FormControl>
                         <Input 
-                          className="dw-input"
+                          className="hp-input"
                           type="email"
                           placeholder="your@email.com" 
                           {...field} 
@@ -253,10 +254,10 @@ export default function BoatForm({
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="dw-label">Phone Number *</FormLabel>
+                      <FormLabel className="hp-label">Phone Number *</FormLabel>
                       <FormControl>
                         <Input 
-                          className="dw-input"
+                          className="hp-input"
                           type="tel"
                           placeholder="(555) 123-4567" 
                           {...field} 
@@ -268,16 +269,16 @@ export default function BoatForm({
                   )}
                 />
 
-                <div className="dw-grid-2">
+                <div className="hp-grid-2">
                   <FormField
                     control={form.control}
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="dw-label">City</FormLabel>
+                        <FormLabel className="hp-label">City</FormLabel>
                         <FormControl>
                           <Input 
-                            className="dw-input"
+                            className="hp-input"
                             placeholder="Miami" 
                             {...field} 
                             data-testid="input-city"
@@ -293,10 +294,10 @@ export default function BoatForm({
                     name="zipCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="dw-label">Zip Code</FormLabel>
+                        <FormLabel className="hp-label">Zip Code</FormLabel>
                         <FormControl>
                           <Input 
-                            className="dw-input"
+                            className="hp-input"
                             placeholder="33101" 
                             {...field} 
                             data-testid="input-zipcode"
@@ -313,10 +314,10 @@ export default function BoatForm({
                   name="makeModel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="dw-label">Boat Make & Model *</FormLabel>
+                      <FormLabel className="hp-label">Boat Make & Model *</FormLabel>
                       <FormControl>
                         <Input 
-                          className="dw-input"
+                          className="hp-input"
                           placeholder="Sunseeker 68 Sport Boat, Azimut 55, Princess V65, etc." 
                           {...field} 
                           data-testid="input-make-model"
@@ -341,7 +342,7 @@ export default function BoatForm({
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>
-                          I agree to receive texts/calls from DeckWorth
+                          I agree to receive texts/calls from HullPrice
                         </FormLabel>
                         <FormDescription>
                           Message & data rates may apply. You can opt out at any time.
@@ -353,7 +354,7 @@ export default function BoatForm({
 
                 <Button 
                   type="submit" 
-                  className="dw-btn dw-btn-primary w-full"
+                  className="hp-btn hp-btn-primary w-full"
                   data-testid="button-continue-step1"
                 >
                   Continue to Vessel Details
@@ -366,17 +367,17 @@ export default function BoatForm({
           )}
 
           {currentStep === 2 && (
-            <div className="dw-stack">
+            <div className="hp-stack">
               <h2 style={{fontSize:20, fontWeight:700, color:"var(--ink)", marginBottom:8}}>Vessel Details</h2>
                 <FormField
                   control={form.control}
                   name="year"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="dw-label">Year</FormLabel>
+                      <FormLabel className="hp-label">Year</FormLabel>
                       <FormControl>
                         <Input 
-                          className="dw-input"
+                          className="hp-input"
                           type="number"
                           placeholder="2020" 
                           min="1950"
@@ -390,16 +391,16 @@ export default function BoatForm({
                   )}
                 />
 
-                <div className="dw-grid-2">
+                <div className="hp-grid-2">
                   <FormField
                     control={form.control}
                     name="loaFt"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="dw-label">Length Overall (ft)</FormLabel>
+                        <FormLabel className="hp-label">Length Overall (ft)</FormLabel>
                         <FormControl>
                           <Input 
-                            className="dw-input"
+                            className="hp-input"
                             type="number"
                             placeholder="65" 
                             min="20"
@@ -419,10 +420,10 @@ export default function BoatForm({
                     name="fuelType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="dw-label">Fuel Type</FormLabel>
+                        <FormLabel className="hp-label">Fuel Type</FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger className="dw-select" data-testid="select-fuel-type">
+                            <SelectTrigger className="hp-select" data-testid="select-fuel-type">
                               <SelectValue placeholder="Select fuel type" />
                             </SelectTrigger>
                           </FormControl>
@@ -444,10 +445,10 @@ export default function BoatForm({
                   name="condition"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="dw-label">Condition</FormLabel>
+                      <FormLabel className="hp-label">Condition</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
-                          <SelectTrigger className="dw-select" data-testid="select-condition">
+                          <SelectTrigger className="hp-select" data-testid="select-condition">
                             <SelectValue placeholder="Select condition" />
                           </SelectTrigger>
                         </FormControl>
@@ -466,23 +467,13 @@ export default function BoatForm({
 
 
                 {/* Cloudflare Turnstile */}
-                {import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ? (
+                {isTurnstileConfigured && (
                   <div className="space-y-2">
                     <Label>Security Verification</Label>
                     <div id="turnstile-widget" className="flex justify-center" />
                     <p className="text-sm text-muted-foreground text-center">
                       Please complete the security verification to continue
                     </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label>Security Verification</Label>
-                    <div className="flex justify-center p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center text-green-700">
-                        <i className="fas fa-check-circle mr-2" />
-                        Security verification bypassed (development mode)
-                      </div>
-                    </div>
                   </div>
                 )}
 
@@ -499,7 +490,7 @@ export default function BoatForm({
                   <Button 
                     type="submit" 
                     className="flex-1"
-                    disabled={isLoading || !turnstileToken}
+                    disabled={isLoading || (isTurnstileConfigured && !turnstileToken)}
                     data-testid="button-submit-valuation"
                   >
                     {isLoading ? (

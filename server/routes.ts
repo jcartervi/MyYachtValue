@@ -153,6 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const estimateInputData = {
         brand,
         model,
+        makeModel: vesselData.makeModel,
         year: vesselData.year || null,
         loaFt: vesselData.loaFt || null,
         fuelType: vesselData.fuelType || null,
