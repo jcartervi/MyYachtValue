@@ -1,13 +1,61 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createEstimateRequestSchema } from "@shared/schema";
-import { turnstileService } from "./services/turnstile";
-import { estimatorService } from "./services/estimator";
-import { twilioService } from "./services/twilio";
-import { pipedriveService } from "./services/pipedrive";
 import { submitFormRateLimit, generalRateLimit } from "./middleware/rateLimit";
 import { openAIHealth } from "./utils/ai-utils";
+import { openai, OPENAI_MODEL } from "../backend/ai-utils";
+import { VALUATION_SYSTEM_PROMPT, buildValuationUserPayload } from "../backend/prompts/valuation";
+import { ValuationResult } from "../backend/types";
+
+export async function postValuation(req: Request, res: Response) {
+  const payload = req.body ?? {};
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(502).json({ error: "AIUnavailable", detail: "Missing OPENAI_API_KEY" });
+    }
+
+    // (Optional debug) quick visibility in logs
+    console.log("Valuation calling OpenAI", {
+      model: OPENAI_MODEL,
+      keyPresent: !!process.env.OPENAI_API_KEY,
+    });
+
+    const resp: any = await openai.responses.create({
+      model: OPENAI_MODEL,
+      input: [
+        { role: "system", content: VALUATION_SYSTEM_PROMPT },
+        { role: "user", content: JSON.stringify(buildValuationUserPayload(payload)) }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2
+    } as any);
+
+    const text = resp.output_text
+      ?? resp.output?.[0]?.content?.[0]?.text?.value
+      ?? "{}";
+
+    let ai: any;
+    try {
+      ai = JSON.parse(text);
+    } catch {
+      return res.status(502).json({ error: "BadAIOutput", detail: "Non‑JSON AI response" });
+    }
+
+    const result: ValuationResult = {
+      valuation_low: typeof ai.valuation_low === "number" ? ai.valuation_low : null,
+      valuation_mid: typeof ai.valuation_mid === "number" ? ai.valuation_mid : null,
+      valuation_high: typeof ai.valuation_high === "number" ? ai.valuation_high : null,
+      narrative: typeof ai.narrative === "string" ? ai.narrative : null,
+      assumptions: Array.isArray(ai.assumptions) ? ai.assumptions : null,
+      inputs_echo: payload
+    };
+
+    return res.json(result);
+  } catch (err) {
+    console.error("Valuation OpenAI error:", err);
+    return res.status(502).json({ error: "AIUnavailable", detail: "OpenAI request failed" });
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Apply general rate limiting to all API routes except lead activity endpoints
@@ -43,10 +91,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
   app.get("/api/health", (req: Request, res: Response) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
-  });
-
-  app.get("/health/openai", (_req: Request, res: Response) => {
-    res.json({ ok: true, model: process.env.OPENAI_MODEL ?? null });
   });
 
   // OpenAI health check endpoint
@@ -105,192 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Main valuation endpoint
-  app.post("/api/valuation", submitFormRateLimit, async (req: Request, res: Response) => {
-    try {
-      const clientIp = req.ip || req.connection.remoteAddress || "unknown";
-      
-      // Validate request body
-      const validationResult = createEstimateRequestSchema.safeParse(req.body);
-      if (!validationResult.success) {
-        return res.status(400).json({
-          error: "Validation failed",
-          details: validationResult.error.issues,
-        });
-      }
-
-      const { leadData, vesselData, turnstileToken, utmParams } = validationResult.data;
-      const { make: providedMake, model: providedModel, ...vesselPayload } = vesselData;
-
-      // Verify Turnstile token
-      const turnstileResult = await turnstileService.verifyToken(turnstileToken, clientIp);
-      if (!turnstileResult.success) {
-        return res.status(400).json({
-          error: turnstileResult.error || "Security verification failed",
-        });
-      }
-
-      // Create lead with IP and UTM tracking
-      const lead = await storage.createLead({
-        ...leadData,
-        ipAddress: clientIp,
-        utmParams,
-      });
-
-      // Log form submission activity
-      await storage.createActivity({
-        leadId: lead.id,
-        activityType: "form_submit",
-        details: { ip: clientIp, userAgent: req.headers["user-agent"] },
-      });
-
-      // Create vessel record
-      const vessel = await storage.createVessel({
-        ...vesselPayload,
-        leadId: lead.id,
-      });
-
-      // Parse make/model information for the estimator payload
-      const normalizedMakeModel = vesselPayload.makeModel.trim();
-      const makeModelParts = normalizedMakeModel.split(/\s+/);
-      const fallbackMake = makeModelParts[0] || '';
-      const fallbackModel = makeModelParts.slice(1).join(' ').trim();
-      const make = (providedMake?.trim() || fallbackMake) ?? '';
-      const model = providedModel?.trim() || (fallbackModel.length > 0 ? fallbackModel : null);
-
-      // Generate valuation estimate - convert undefined to null for estimator
-      const estimateInputData = {
-        make,
-        model,
-        makeModel: vesselPayload.makeModel,
-        year: vesselPayload.year ?? null,
-        loaFt: vesselPayload.loaFt ?? null,
-        fuelType: vesselPayload.fuelType ?? null,
-        horsepower: null, // No longer collected
-        hours: vesselPayload.hours ?? null,
-        refitYear: null, // No longer collected
-        condition: vesselPayload.condition ?? "good",
-      };
-      const estimateResult = await estimatorService.generateEstimate(estimateInputData);
-
-      // Persist the estimate without transient metadata like aiStatus
-      const { aiStatus: _aiStatus, ...estimateRecord } = estimateResult;
-      const estimate = await storage.createEstimate({
-        vesselId: vessel.id,
-        ...estimateRecord,
-      });
-
-      // Handle premium lead notifications
-      if (estimateResult.isPremiumLead && lead.smsConsent && lead.phone) {
-        const smsMessage = `🚨 PREMIUM LEAD ALERT: ${lead.name || lead.email} - ${vessel.year} ${vessel.makeModel} - Est: $${estimateResult.mostLikely.toLocaleString()} - Phone: ${lead.phone}`;
-        
-        const smsResult = await twilioService.sendSMS(
-          process.env.ALERT_PHONE_NUMBER || "+19545410105",
-          smsMessage
-        );
-
-        if (smsResult.success) {
-          await storage.createActivity({
-            leadId: lead.id,
-            activityType: "sms_sent",
-            details: { messageId: smsResult.messageId, type: "premium_lead_alert" },
-          });
-        }
-      }
-
-      // Create Pipedrive records
-      try {
-        const personResult = await pipedriveService.createPerson(
-          lead.name || "",
-          lead.email,
-          lead.phone || ""
-        );
-
-        if (personResult.success && personResult.personId) {
-          // Map vessel data to custom fields (configure field keys in environment)
-          const customFields: Record<string, any> = {};
-          
-          if (process.env.PIPEDRIVE_FIELD_BRAND) customFields[process.env.PIPEDRIVE_FIELD_BRAND] = make;
-          if (process.env.PIPEDRIVE_FIELD_MODEL) customFields[process.env.PIPEDRIVE_FIELD_MODEL] = model;
-          if (process.env.PIPEDRIVE_FIELD_YEAR) customFields[process.env.PIPEDRIVE_FIELD_YEAR] = vessel.year;
-          if (process.env.PIPEDRIVE_FIELD_LOA) customFields[process.env.PIPEDRIVE_FIELD_LOA] = vessel.loaFt;
-          if (process.env.PIPEDRIVE_FIELD_FUEL_TYPE) customFields[process.env.PIPEDRIVE_FIELD_FUEL_TYPE] = vessel.fuelType;
-          if (process.env.PIPEDRIVE_FIELD_VALUATION) customFields[process.env.PIPEDRIVE_FIELD_VALUATION] = JSON.stringify({
-            low: estimate.low,
-            mostLikely: estimate.mostLikely,
-            high: estimate.high,
-            wholesale: estimate.wholesale,
-            confidence: estimate.confidence,
-          });
-
-          const dealTitle = `Valuation: ${vessel.makeModel} ${vessel.year || ""}`.trim();
-          const dealResult = await pipedriveService.createDeal(
-            dealTitle,
-            personResult.personId,
-            estimateResult.mostLikely,
-            customFields
-          );
-
-          if (dealResult.success && dealResult.dealId) {
-            // Create follow-up activity for high-value leads
-            if (estimateResult.mostLikely >= 1000000 || estimateResult.isPremiumLead) {
-              await pipedriveService.createActivity(
-                dealResult.dealId,
-                "High-Value Lead Follow-Up",
-                `Premium lead with ${vessel.year} ${vessel.makeModel}. Estimated value: $${estimateResult.mostLikely.toLocaleString()}. Contact within 24 hours.`,
-                "call"
-              );
-            }
-
-            await storage.createActivity({
-              leadId: lead.id,
-              activityType: "pipedrive_created",
-              details: { personId: personResult.personId, dealId: dealResult.dealId },
-            });
-          }
-        }
-      } catch (pipedriveError) {
-        console.error("Pipedrive integration error:", pipedriveError);
-        // Continue execution - don't fail the request if Pipedrive fails
-      }
-
-      // Return valuation results
-      res.json({
-        success: true,
-        lead: {
-          id: lead.id,
-          email: lead.email,
-          name: lead.name,
-        },
-        vessel: {
-          id: vessel.id,
-          makeModel: vessel.makeModel,
-          year: vessel.year,
-          loaFt: vessel.loaFt,
-          fuelType: vessel.fuelType,
-          condition: vessel.condition,
-          hours: vessel.hours,
-        },
-        estimate: {
-          id: estimate.id,
-          low: estimate.low,
-          mostLikely: estimate.mostLikely,
-          high: estimate.high,
-          wholesale: estimate.wholesale,
-          confidence: estimate.confidence,
-          narrative: estimate.narrative,
-          comps: estimate.comps,
-          isPremiumLead: estimate.isPremiumLead,
-          aiStatus: estimateResult.aiStatus || 'unknown',
-        },
-      });
-
-    } catch (error) {
-      console.error("Valuation endpoint error:", error);
-      res.status(500).json({
-        error: "An error occurred while processing your request. Please try again.",
-      });
-    }
-  });
+  app.post("/api/valuation", submitFormRateLimit, postValuation);
 
 
   // Get lead activities (for debugging/admin)

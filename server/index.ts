@@ -1,8 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { openai, OPENAI_MODEL } from "../backend/ai-utils";
+
+console.log("OpenAI baseURL =", (openai as any).baseURL || "default");
+console.log("OPENAI key present =", !!process.env.OPENAI_API_KEY);
+if (((openai as any).baseURL || "").includes("dpg-")) {
+  throw new Error("Misconfigured OpenAI baseURL (points to Postgres host).");
+}
 
 const app = express();
+app.get("/health/openai", (_req, res) => {
+  res.json({ key: !!process.env.OPENAI_API_KEY, model: OPENAI_MODEL });
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
