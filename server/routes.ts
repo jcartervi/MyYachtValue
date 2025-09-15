@@ -168,10 +168,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       const estimateResult = await estimatorService.generateEstimate(estimateInputData);
 
-      // Create estimate record
+      // Persist the estimate without transient metadata like aiStatus
+      const { aiStatus: _aiStatus, ...estimateRecord } = estimateResult;
       const estimate = await storage.createEstimate({
         vesselId: vessel.id,
-        ...estimateResult,
+        ...estimateRecord,
       });
 
       // Handle premium lead notifications
