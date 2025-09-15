@@ -4,4 +4,5 @@ export.tar.gz
 __pycache__/
 *.pyc
 attached_assets/
+.env
 **/.env
