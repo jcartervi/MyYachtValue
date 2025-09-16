@@ -41,13 +41,51 @@ export async function postValuation(req: Request, res: Response) {
       return res.status(502).json({ error: "BadAIOutput", detail: "Non‑JSON AI response" });
     }
 
+    if (!ai || typeof ai !== "object") {
+      ai = {};
+    }
+
+    // Scrub banned phrases
     if (ai && typeof ai.narrative === "string") {
       ai.narrative = ai.narrative
         .replace(/reduces value/gi, "")
         .replace(/limits pricing/gi, "")
         .replace(/\bissues\b/gi, "")
-        .replace(/\bconcerning\b/gi, "");
+        .replace(/\bconcerning\b/gi, "")
+        .replace(/\s+/g, " ")
+        .trim();
     }
+
+    // Clean formatting
+    const fmt = (n: number | null) => (
+      typeof n === "number"
+        ? n.toLocaleString("en-US", { maximumFractionDigits: 0 })
+        : "—"
+    );
+
+    const low = ai?.valuation_low ?? null;
+    const mid = ai?.valuation_mid ?? null;
+    const high = ai?.valuation_high ?? null;
+    const wholesale = typeof mid === "number" ? Math.round(mid * 0.75) : null;
+
+    const tokenLine =
+      ` Estimated Market Range: $${fmt(low)}–$${fmt(high)}.` +
+      ` Most Likely: $${fmt(mid)}.` +
+      ` Wholesale: ~$${fmt(wholesale)}.` +
+      ` Confidence: ${ai?.confidence ?? "Medium"}.`;
+
+    // Remove any AI-generated token lines to avoid duplicates
+    ai.narrative = typeof ai.narrative === "string" ? ai.narrative : "";
+
+    ai.narrative = ai.narrative
+      .replace(/Estimated Market Range:[^.]*\./i, "")
+      .replace(/Most Likely:[^.]*\./i, "")
+      .replace(/Wholesale:[^.]*\./i, "")
+      .replace(/Confidence:[^.]*\./i, "")
+      .trim();
+
+    // Append clean final version
+    ai.narrative = (ai.narrative.endsWith(".") ? ai.narrative : ai.narrative + ".") + tokenLine;
 
     const result: ValuationResult = {
       valuation_low: typeof ai.valuation_low === "number" ? ai.valuation_low : null,
