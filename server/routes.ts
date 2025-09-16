@@ -26,7 +26,6 @@ export async function postValuation(req: Request, res: Response) {
         { role: "system", content: VALUATION_SYSTEM_PROMPT },
         { role: "user", content: JSON.stringify(buildValuationUserPayload(payload)) }
       ],
-      modalities: ["text"],
       text: { format: "json_object" },
       temperature: 0.2
     } as any);
