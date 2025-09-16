@@ -27,7 +27,8 @@ export async function postValuation(req: Request, res: Response) {
         { role: "user", content: JSON.stringify(buildValuationUserPayload(payload)) }
       ],
       text: { format: { type: "json_object" } },
-      temperature: 0.2
+      temperature: 0.1,
+      top_p: 1
     } as any);
 
     const text = resp.output_text
@@ -63,14 +64,30 @@ export async function postValuation(req: Request, res: Response) {
         : "—"
     );
 
-    const low = ai?.valuation_low ?? null;
-    const mid = ai?.valuation_mid ?? null;
-    const high = ai?.valuation_high ?? null;
-    const wholesale = typeof mid === "number" ? Math.round(mid * 0.75) : null;
+    const floor10k = (n: number | null) => (
+      typeof n === "number" && Number.isFinite(n)
+        ? Math.floor(n / 10000) * 10000
+        : null
+    );
+
+    const low = typeof ai?.valuation_low === "number" && Number.isFinite(ai.valuation_low)
+      ? ai.valuation_low
+      : null;
+    const mid = typeof ai?.valuation_mid === "number" && Number.isFinite(ai.valuation_mid)
+      ? ai.valuation_mid
+      : null;
+    const high = typeof ai?.valuation_high === "number" && Number.isFinite(ai.valuation_high)
+      ? ai.valuation_high
+      : null;
+
+    const midFallback = low !== null && high !== null ? Math.round((low + high) / 2) : null;
+    const midBase = mid ?? midFallback;
+    const wholesaleRaw = typeof midBase === "number" ? midBase * 0.60 : null;
+    const wholesale = floor10k(wholesaleRaw);
 
     const tokenLine =
       ` Estimated Market Range: $${fmt(low)}–$${fmt(high)}.` +
-      ` Most Likely: $${fmt(mid)}.` +
+      ` Most Likely: $${fmt(midBase)}.` +
       ` Wholesale: ~$${fmt(wholesale)}.` +
       ` Confidence: ${ai?.confidence ?? "Medium"}.`;
 
@@ -88,9 +105,10 @@ export async function postValuation(req: Request, res: Response) {
     ai.narrative = (ai.narrative.endsWith(".") ? ai.narrative : ai.narrative + ".") + tokenLine;
 
     const result: ValuationResult = {
-      valuation_low: typeof ai.valuation_low === "number" ? ai.valuation_low : null,
-      valuation_mid: typeof ai.valuation_mid === "number" ? ai.valuation_mid : null,
-      valuation_high: typeof ai.valuation_high === "number" ? ai.valuation_high : null,
+      valuation_low: low,
+      valuation_mid: mid,
+      valuation_high: high,
+      wholesale,
       narrative: typeof ai.narrative === "string" ? ai.narrative : null,
       assumptions: Array.isArray(ai.assumptions) ? ai.assumptions : null,
       inputs_echo: payload

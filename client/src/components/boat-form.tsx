@@ -219,14 +219,30 @@ export default function BoatForm({
           throw new Error(message);
         }
 
+        const floor10k = (value: number | null) =>
+          typeof value === "number" && Number.isFinite(value)
+            ? Math.floor(value / 10000) * 10000
+            : null;
+
+        const midFallbackValue =
+          normalizedResult.valuation_low !== null && normalizedResult.valuation_high !== null
+            ? Math.round((normalizedResult.valuation_low + normalizedResult.valuation_high) / 2)
+            : null;
+
+        const midBaseCandidate = normalizedResult.valuation_mid ?? midFallbackValue;
         const mostLikelyValue =
-          normalizedResult.valuation_mid ??
+          midBaseCandidate ??
           normalizedResult.valuation_high ??
           normalizedResult.valuation_low ??
           0;
+        const midBaseValue = midBaseCandidate ?? mostLikelyValue;
         const lowValue = normalizedResult.valuation_low ?? mostLikelyValue;
         const highValue = normalizedResult.valuation_high ?? mostLikelyValue;
-        const wholesaleValue = normalizedResult.valuation_low ?? mostLikelyValue;
+
+        const derivedWholesale =
+          normalizedResult.wholesale ?? floor10k(midBaseValue * 0.60);
+
+        const wholesaleValue = derivedWholesale ?? floor10k(mostLikelyValue * 0.60) ?? 0;
         const estimate = {
           id: generateId(),
           low: lowValue,

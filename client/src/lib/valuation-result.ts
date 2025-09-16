@@ -4,6 +4,7 @@ export const valuationResultSchema = z.object({
   valuation_low: z.number().nullable(),
   valuation_mid: z.number().nullable(),
   valuation_high: z.number().nullable(),
+  wholesale: z.number().nullable(),
   narrative: z.string().nullable(),
   assumptions: z.array(z.string()).nullable(),
   inputs_echo: z.record(z.any()),
@@ -36,6 +37,12 @@ const highNumberKeys = [
   "max",
   "maximum",
   "ceiling",
+];
+
+const wholesaleNumberKeys = [
+  "wholesale",
+  "valuation_wholesale",
+  "wholesale_estimate",
 ];
 
 const assumptionKeys = ["assumptions", "valuation_assumptions"];
@@ -109,6 +116,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function floor10k(n: number | null): number | null {
+  if (typeof n !== "number" || !Number.isFinite(n)) {
+    return null;
+  }
+  return Math.floor(n / 10000) * 10000;
+}
+
 /**
  * Normalizes valuation responses so the UI can rely on a consistent shape regardless of the backend version.
  * If the flat ValuationResult shape is present it is returned directly. Otherwise the function attempts to
@@ -139,6 +153,7 @@ export function normalizeValuationResponse(raw: unknown): ValuationResult | null
   const valuation_low = extractFirstNumber(valuationSection, numberLikeKeys);
   const valuation_mid = extractFirstNumber(valuationSection, midNumberKeys);
   const valuation_high = extractFirstNumber(valuationSection, highNumberKeys);
+  const valuation_wholesale = extractFirstNumber(valuationSection, wholesaleNumberKeys);
 
   const narrative = extractNarrative(dataSection) ?? extractNarrative(rawRecord);
   const assumptions = extractAssumptions(dataSection) ?? extractAssumptions(rawRecord);
@@ -146,10 +161,18 @@ export function normalizeValuationResponse(raw: unknown): ValuationResult | null
   const inputsFromRaw = extractInputsEcho(rawRecord);
   const inputs_echo = Object.keys(inputsFromData).length > 0 ? inputsFromData : inputsFromRaw;
 
+  const midFallback =
+    valuation_low !== null && valuation_high !== null
+      ? Math.round((valuation_low + valuation_high) / 2)
+      : null;
+  const midBase = valuation_mid ?? midFallback;
+  const computedWholesale = valuation_wholesale ?? floor10k(midBase !== null ? midBase * 0.60 : null);
+
   const candidate = {
     valuation_low,
     valuation_mid,
     valuation_high,
+    wholesale: computedWholesale,
     narrative: narrative ?? null,
     assumptions: assumptions ?? null,
     inputs_echo,
@@ -164,6 +187,7 @@ export function normalizeValuationResponse(raw: unknown): ValuationResult | null
     parsedCandidate.data.valuation_low !== null ||
     parsedCandidate.data.valuation_mid !== null ||
     parsedCandidate.data.valuation_high !== null ||
+    parsedCandidate.data.wholesale !== null ||
     (parsedCandidate.data.assumptions?.length ?? 0) > 0 ||
     (parsedCandidate.data.narrative !== null && parsedCandidate.data.narrative.trim().length > 0) ||
     Object.keys(parsedCandidate.data.inputs_echo ?? {}).length > 0;
