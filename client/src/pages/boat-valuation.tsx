@@ -2,14 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import BoatForm from "@/components/boat-form";
-import ValuationResults from "@/components/valuation-results";
-import ProgressIndicator from "@/components/progress-indicator";
 import { useToast } from "@/hooks/use-toast";
 import { useUTMTracking } from "@/hooks/use-utm-tracking";
 import HullPriceLogo from "@/components/HullPriceLogo";
 import { Stepper } from "@/components/Stepper";
 import { MetricCard } from "@/components/MetricCard";
-import { Confidence } from "@/components/Confidence";
 import { Loader } from "@/components/Loader";
 
 interface ValuationData {
@@ -30,12 +27,12 @@ interface ValuationData {
   };
   estimate: {
     id: string;
-    low: number;
-    mostLikely: number;
-    high: number;
-    wholesale: number;
-    confidence: string;
+    low: number | null;
+    mostLikely: number | null;
+    high: number | null;
+    wholesale: number | null;
     narrative: string;
+    assumptions?: string[];
     comps: Array<{
       title: string;
       ask: number;
@@ -53,6 +50,11 @@ export default function BoatValuation() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const utmParams = useUTMTracking();
+
+  const fmt = (n?: number | null) =>
+    typeof n === "number"
+      ? n.toLocaleString("en-US", { maximumFractionDigits: 0 })
+      : "—";
 
   const handleValuationComplete = (data: ValuationData) => {
     setValuationData(data);
@@ -77,9 +79,9 @@ export default function BoatValuation() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div style={{maxWidth:960, margin:"24px auto", padding:"0 16px"}}>
+      <div className="max-w-5xl mx-auto px-4 py-6">
         <Stepper step={currentStep} steps={["Contact", "Vessel", "Results"]} />
-        
+
         {currentStep < 3 ? (
           <section className="hp-card" style={{padding:18, marginTop:16}}>
             <BoatForm
@@ -93,15 +95,56 @@ export default function BoatValuation() {
           </section>
         ) : (
           valuationData && (
-            <section className="hp-card" style={{padding:18, marginTop:16}}>
-              <div className="hp-grid-2">
-                <MetricCard label="Low" value={valuationData.estimate.low}/>
-                <MetricCard label="Most Likely" value={valuationData.estimate.mostLikely}/>
-                <MetricCard label="High" value={valuationData.estimate.high}/>
-                <MetricCard label="Wholesale" value={valuationData.estimate.wholesale}/>
+            <section className="mt-6 space-y-6 md:space-y-8">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <MetricCard
+                  label="Low"
+                  value={
+                    typeof valuationData.estimate.low === "number"
+                      ? `$${fmt(valuationData.estimate.low)}`
+                      : "—"
+                  }
+                />
+                <MetricCard
+                  label="Most Likely"
+                  value={
+                    typeof valuationData.estimate.mostLikely === "number"
+                      ? `$${fmt(valuationData.estimate.mostLikely)}`
+                      : "—"
+                  }
+                />
+                <MetricCard
+                  label="High"
+                  value={
+                    typeof valuationData.estimate.high === "number"
+                      ? `$${fmt(valuationData.estimate.high)}`
+                      : "—"
+                  }
+                />
+                <MetricCard
+                  label="Wholesale (Fast Cash)"
+                  value={
+                    typeof valuationData.estimate.wholesale === "number"
+                      ? `~$${fmt(valuationData.estimate.wholesale)}`
+                      : "—"
+                  }
+                />
               </div>
-              <Confidence level={valuationData.estimate.confidence as "Low" | "Medium" | "High"}/>
-              <p style={{marginTop:12, color:"#334155", whiteSpace:"pre-wrap"}}>{valuationData.estimate.narrative}</p>
+              <div className="rounded-lg border bg-card p-6 shadow-sm">
+                <p className="text-muted-foreground leading-relaxed">
+                  {valuationData.estimate.narrative}
+                </p>
+              </div>
+              {valuationData.estimate.assumptions && valuationData.estimate.assumptions.length > 0 && (
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-2">Key Assumptions</h3>
+                  <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                    {valuationData.estimate.assumptions.map((item, index) => (
+                      <li key={index}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </section>
           )
         )}
