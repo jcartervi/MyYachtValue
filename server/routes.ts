@@ -28,22 +28,27 @@ export async function postValuation(req: Request, res: Response) {
       temperature: 0,
       top_p: 1,
       seed: 7,
-      response_format: { type: "json_object" },
+      text: { format: "json" },
       input: [
         { role: "system", content: VALUATION_SYSTEM_PROMPT },
         { role: "user", content: JSON.stringify(userPayload) }
       ]
     } as any);
 
-    const text = resp.output_text
-      ?? resp.output?.[0]?.content?.[0]?.text?.value
-      ?? "{}";
-
     let ai: any;
     try {
-      ai = JSON.parse(text);
-    } catch {
-      return res.status(502).json({ error: "BadAIOutput", detail: "Non‑JSON AI response" });
+      // SDK helper (preferred)
+      const txt = resp.output_text ?? (
+        Array.isArray(resp.output) &&
+        resp.output[0]?.content?.[0]?.text
+          ? resp.output[0].content[0].text
+          : null
+      );
+      if (!txt) throw new Error("No output_text");
+      ai = JSON.parse(txt);
+    } catch (e) {
+      console.error("Valuation JSON parse error:", e, resp);
+      throw new Error("AIUnavailable");
     }
 
     if (!ai || typeof ai !== "object") {
