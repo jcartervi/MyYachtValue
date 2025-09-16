@@ -1,13 +1,9 @@
-interface MetricCardProps {
-  label: string;
-  value: string;
-}
-
-export function MetricCard({ label, value }: MetricCardProps) {
+export function MetricCard({label,value}: {label: string, value?: number}){
+  const fmt=(n: number | undefined)=> n?.toLocaleString?.("en-US",{style:"currency",currency:"USD"}) ?? "—";
   return (
-    <div className="rounded-xl border bg-card p-4 text-center shadow-sm">
-      <div className="text-sm font-medium text-muted-foreground">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-foreground">{value}</div>
+    <div className="hp-card hp-metric">
+      <div className="hp-cap">{label}</div>
+      <div className="hp-val">{fmt(value)}</div>
     </div>
   );
 }

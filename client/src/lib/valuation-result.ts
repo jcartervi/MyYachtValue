@@ -116,6 +116,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function floor10k(n: number | null): number | null {
+  if (typeof n !== "number" || !Number.isFinite(n)) {
+    return null;
+  }
+  return Math.floor(n / 10000) * 10000;
+}
+
 /**
  * Normalizes valuation responses so the UI can rely on a consistent shape regardless of the backend version.
  * If the flat ValuationResult shape is present it is returned directly. Otherwise the function attempts to
@@ -154,11 +161,18 @@ export function normalizeValuationResponse(raw: unknown): ValuationResult | null
   const inputsFromRaw = extractInputsEcho(rawRecord);
   const inputs_echo = Object.keys(inputsFromData).length > 0 ? inputsFromData : inputsFromRaw;
 
+  const midFallback =
+    valuation_low !== null && valuation_high !== null
+      ? Math.round((valuation_low + valuation_high) / 2)
+      : null;
+  const midBase = valuation_mid ?? midFallback;
+  const computedWholesale = valuation_wholesale ?? floor10k(midBase !== null ? midBase * 0.60 : null);
+
   const candidate = {
     valuation_low,
     valuation_mid,
     valuation_high,
-    wholesale: valuation_wholesale,
+    wholesale: computedWholesale,
     narrative: narrative ?? null,
     assumptions: assumptions ?? null,
     inputs_echo,
