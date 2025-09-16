@@ -27,7 +27,6 @@ export async function postValuation(req: Request, res: Response) {
       model,
       temperature: 0,
       top_p: 1,
-      seed: 7,
       text: { format: "json" },
       input: [
         { role: "system", content: VALUATION_SYSTEM_PROMPT },
