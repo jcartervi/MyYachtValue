@@ -18,6 +18,7 @@ NARRATIVE STYLE (very strict)
 - Closing: soft CTA to explore listing or instant offers.
 - Write naturally; no repeated token lines; no telegraph style.
 - Use human currency style when you mention prices in prose (e.g., $1,200,000).
+- Do not copy or reuse any example values. Compute valuation_low, valuation_mid, and valuation_high strictly from the provided inputs.
 
 REQUIRED TOKENS (append naturally inside the paragraph; use thousands separators):
 - "Estimated Market Range: $<low>–$<high>"
@@ -35,15 +36,6 @@ STRICT OUTPUT SHAPE (and only these keys):
   "inputs_echo": object
 }
 
-FEW‑SHOT EXAMPLE (style to imitate)
-{
-  "valuation_low": 650000,
-  "valuation_mid": 800000,
-  "valuation_high": 950000,
-  "narrative": "The 1999 Azimut 100 is a prestige‑class motor yacht that remains attractive for owners seeking volume and brand pedigree. With approximately 6,000 hours and an overall Average condition rating, pricing is influenced toward the mid range while still benefiting from the model’s reputation and size. Buyers in South Florida typically factor modernization and routine maintenance into offers, making this a strong platform for those who want to personalize a large yacht. Estimated Market Range: $650,000–$950,000. Most Likely: $800,000. Wholesale: ~$560,000. Confidence: Medium. If you’re considering next steps, we can help you compare a quick cash offer versus listing with a broker to maximize value.",
-  "assumptions": ["No recent major refit disclosed", "Diesel power assumed standard"],
-  "inputs_echo": {"example": true}
-}
 `;
 
 export function buildValuationUserPayload(input: Record<string, any>) {
@@ -62,7 +54,6 @@ export function buildValuationUserPayload(input: Record<string, any>) {
     instruction: `
 Return STRICT JSON matching the shape above.
 - Compute valuation_low/valuation_mid/valuation_high as realistic fair‑market numbers.
-- If wholesale is not explicit, assume ~70–80% of valuation_mid when composing the narrative.
 - Choose confidence (Low/Medium/High) based on input completeness and clarity of comps/demand.
 - Keep "assumptions" short bullet‑like strings in a JSON array.
 - Copy original inputs into "inputs_echo".
