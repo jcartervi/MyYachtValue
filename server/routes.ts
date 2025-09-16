@@ -23,28 +23,21 @@ export async function postValuation(req: Request, res: Response) {
       keyPresent: !!process.env.OPENAI_API_KEY,
     });
 
-    const resp: any = await openai.responses.create({
+    const resp = await openai.chat.completions.create({
       model,
       temperature: 0,
       top_p: 1,
-      modalities: ["text"],
-      text: { format: { type: "json_object" } },
-      input: [
+      response_format: { type: "json_object" },
+      messages: [
         { role: "system", content: VALUATION_SYSTEM_PROMPT },
         { role: "user", content: JSON.stringify(userPayload) }
       ]
-    } as any);
+    });
 
     let ai: any;
     try {
-      // SDK helper (preferred)
-      const txt = resp.output_text ?? (
-        Array.isArray(resp.output) &&
-        resp.output[0]?.content?.[0]?.text
-          ? resp.output[0].content[0].text
-          : null
-      );
-      if (!txt) throw new Error("No output_text");
+      const txt = resp.choices?.[0]?.message?.content;
+      if (!txt) throw new Error("AIUnavailable");
       ai = JSON.parse(txt);
     } catch (e) {
       console.error("Valuation JSON parse error:", e, resp);
