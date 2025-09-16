@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormStorage } from "@/hooks/use-form-storage";
 import { leadVesselValidationSchema } from "@/lib/validation";
 import { apiRequest } from "@/lib/queryClient";
+import { normalizeValuationResponse } from "@/lib/valuation-result";
 import { Loader } from "@/components/Loader";
 
 interface FormData {
@@ -192,13 +193,20 @@ export default function BoatForm({
 
         const response = await apiRequest("POST", "/api/valuation", requestData);
         const result = await response.json();
+        const normalizedResult = normalizeValuationResponse(result);
 
-        if (result.success) {
-          clearFormData();
-          onComplete(result);
-        } else {
-          throw new Error(result.error || "Valuation request failed");
+        if (!normalizedResult) {
+          const message =
+            typeof result?.error === "string" && result.error.trim().length > 0
+              ? result.error
+              : "Valuation request failed";
+          throw new Error(message);
         }
+
+        const finalResult = { ...result, ...normalizedResult };
+
+        clearFormData();
+        onComplete(finalResult);
       } catch (error) {
         console.error("Submission error:", error);
         toast({
