@@ -16,6 +16,16 @@ GLOBAL VALUATION POLICY (APPLIES TO ALL BOATS)
 - Seasonality & demand: in shoulder/off seasons or saturated segments, bias toward lower band unless evidence suggests otherwise.
 - Don’t over-index on length alone; vintage/brand/upgrades and liquidity matter more for price realization.
 
+BRAND & SCARCITY POLICY (APPLIES ACROSS ALL BOATS)
+- Consider the vessel’s market tier and brand scarcity, not length alone.
+- Premium, scarce center-console brands (e.g., Freeman, Valhalla, Invincible, Yellowfin ≥39', HCB, Midnight Express, Nor-Tech) typically command stronger resale relative to length-based averages, especially post‑2017 with low–moderate hours and clean presentation.
+- When brandTier is "Premium" and scarcity is "High", bias valuation_mid toward the mid‑to‑upper portion of the comp band if condition is Average or better and hours are moderate for the vintage.
+- Do NOT treat these vessels as commodity center consoles; adjust for brand reputation, demand, and limited supply.
+- If you place a premium/rare brand in the lower valuation band without a clear reason (e.g., heavy use, poor condition, no updates), include a one‑line note in "assumptions" explaining the downward adjustment.
+- Keep Wholesale within the required 55–65% of valuation_mid unless strongly justified in "assumptions".
+
+(Keep all other policies as already defined: region conservatism, age/hours guidance, narrative style, wholesale band, strict JSON, etc.)
+
 MARKET VALUATION POLICY (STRICT)
 - Pricing must reflect actual resale behavior, not aspirational or size-based assumptions.
 - For vessels older than 15 years with 2,000+ engine hours and no major refit:
@@ -58,24 +68,50 @@ STRICT JSON SHAPE (only these keys):
 `;
 
 export function buildValuationUserPayload(input: Record<string, any>) {
+  const make = input?.vesselData?.make ?? input?.make ?? null;
+  const model = input?.vesselData?.model ?? input?.model ?? null;
+  const year = input?.vesselData?.year ?? input?.year ?? null;
+  const loaFt = input?.vesselData?.loaFt ?? input?.loaFt ?? null;
+  const fuelType = input?.vesselData?.fuelType ?? input?.fuelType ?? null;
+  const hours = input?.vesselData?.hours ?? input?.hours ?? null;
+  const condition = input?.vesselData?.condition ?? input?.condition ?? null;
+  const region = input?.region ?? input?.market_region ?? "South Florida";
+
+  // --- Derived, non-numeric hints (no pricing logic) ---
+  const makeLc = String(make || "").toLowerCase();
+  const modelLc = String(model || "").toLowerCase();
+  const isCenterConsole =
+    /console|cc|freeman|valhalla|yellowfin|invincible|hcb|midnight|nor[-\s]?tech|seahunter/.test(makeLc + " " + modelLc);
+
+  const brandTier =
+    /(freeman|valhalla|invincible|yellowfin|hcb|midnight|nor[-\s]?tech)/.test(makeLc)
+      ? "Premium"
+      : isCenterConsole ? "Mainstream-CC" : "Standard";
+
+  const scarcity =
+    /(freeman)/.test(makeLc) ? "High"
+      : /(valhalla|hcb|midnight|nor[-\s]?tech)/.test(makeLc) ? "Medium"
+      : "Normal";
+
+  const segment = isCenterConsole ? "Center Console" : "Other";
+
   const fields = {
-    make: input?.vesselData?.make ?? input?.make ?? null,
-    model: input?.vesselData?.model ?? input?.model ?? null,
-    year: input?.vesselData?.year ?? input?.year ?? null,
-    loaFt: input?.vesselData?.loaFt ?? input?.loaFt ?? null,
-    fuelType: input?.vesselData?.fuelType ?? input?.fuelType ?? null,
-    hours: input?.vesselData?.hours ?? input?.hours ?? null,
-    condition: input?.vesselData?.condition ?? input?.condition ?? null,
-    region: input?.region ?? input?.market_region ?? "South Florida"
+    make, model, year, loaFt, fuelType, hours, condition, region,
+    // Hints only — the model uses these to choose the correct band
+    segment,
+    brandTier,
+    scarcity
   };
 
   return {
     instruction: `
 Return STRICT JSON matching the shape above.
-- Compute valuation_low/mid/high and wholesale from the inputs only, following the Global Valuation Policy and Wholesale Policy.
-- Choose Confidence (Low/Medium/High) and include it only within the narrative token.
-- Keep "assumptions" as short bullet-like strings; include one reason if wholesale leaves the 55–65% band.
-- Copy original inputs into "inputs_echo".
+- Compute valuation_low/mid/high and wholesale from the inputs and policy only (no examples).
+- Apply the Brand & Scarcity Policy using 'segment', 'brandTier', and 'scarcity'.
+- Keep wholesale within 55–65% of valuation_mid unless a strong reason is noted in "assumptions".
+- Choose Confidence (if you still expose it internally) but do not include it in prose unless specified.
+- Keep "assumptions" short; include one line if you down-bias a premium/rare brand despite favorable indicators.
+- Echo inputs (including derived hints) in "inputs_echo".
 `,
     fields
   };
