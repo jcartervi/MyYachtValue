@@ -14,6 +14,14 @@ import { apiRequest } from "@/lib/queryClient";
 import { normalizeValuationResponse } from "@/lib/valuation-result";
 import { Loader } from "@/components/Loader";
 
+const generateId = () => {
+  const cryptoObj = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
+  if (cryptoObj && typeof cryptoObj.randomUUID === "function") {
+    return cryptoObj.randomUUID();
+  }
+  return Math.random().toString(36).slice(2);
+};
+
 interface FormData {
   // Lead data
   name: string;
@@ -168,6 +176,14 @@ export default function BoatForm({
         const normalizedHours =
           parsedHours === undefined || Number.isNaN(parsedHours) ? undefined : parsedHours;
 
+        const parsedYear = data.year ? Number.parseInt(data.year, 10) : undefined;
+        const vesselYear = parsedYear && !Number.isNaN(parsedYear) ? parsedYear : undefined;
+        const parsedLength = data.loaFt ? Number.parseFloat(data.loaFt) : undefined;
+        const vesselLength =
+          typeof parsedLength === "number" && !Number.isNaN(parsedLength) ? parsedLength : undefined;
+        const vesselFuelType = data.fuelType || undefined;
+        const vesselCondition = data.condition;
+
         const requestData = {
           leadData: {
             name: data.name || undefined,
@@ -181,10 +197,10 @@ export default function BoatForm({
             makeModel: data.makeModel,
             make: derivedMake,
             model: normalizedModel,
-            year: data.year ? parseInt(data.year) : undefined,
-            loaFt: data.loaFt ? parseFloat(data.loaFt) : undefined,
-            fuelType: data.fuelType || undefined,
-            condition: data.condition,
+            year: vesselYear,
+            loaFt: vesselLength,
+            fuelType: vesselFuelType,
+            condition: vesselCondition,
             hours: normalizedHours,
           },
           turnstileToken,
@@ -203,10 +219,53 @@ export default function BoatForm({
           throw new Error(message);
         }
 
-        const finalResult = { ...result, ...normalizedResult };
+        const mostLikelyValue =
+          normalizedResult.valuation_mid ??
+          normalizedResult.valuation_high ??
+          normalizedResult.valuation_low ??
+          0;
+        const lowValue = normalizedResult.valuation_low ?? mostLikelyValue;
+        const highValue = normalizedResult.valuation_high ?? mostLikelyValue;
+        const wholesaleValue = normalizedResult.valuation_low ?? mostLikelyValue;
+        const estimate = {
+          id: generateId(),
+          low: lowValue,
+          mostLikely: mostLikelyValue,
+          high: highValue,
+          wholesale: wholesaleValue,
+          confidence: "Medium",
+          narrative: normalizedResult.narrative ?? "",
+          comps: [],
+          isPremiumLead: false,
+        };
+
+        const brandCandidate = derivedMake ?? trimmedMakeModel;
+        const safeBrand = brandCandidate && brandCandidate.length > 0 ? brandCandidate : "Unknown";
+        const lead = {
+          id: generateId(),
+          email: data.email,
+          ...(data.name ? { name: data.name } : {}),
+        };
+        const vessel = {
+          id: generateId(),
+          brand: safeBrand,
+          ...(normalizedModel ? { model: normalizedModel } : {}),
+          ...(vesselYear !== undefined ? { year: vesselYear } : {}),
+          ...(vesselLength !== undefined ? { loaFt: vesselLength } : {}),
+          ...(vesselFuelType ? { engineType: vesselFuelType, fuelType: vesselFuelType } : {}),
+          ...(normalizedHours !== undefined ? { hours: normalizedHours } : {}),
+          condition: vesselCondition,
+          gyro: false,
+        };
+
+        const valuationData = {
+          lead,
+          vessel,
+          estimate,
+        };
 
         clearFormData();
-        onComplete(finalResult);
+        onComplete(valuationData);
       } catch (error) {
         console.error("Submission error:", error);
         toast({
