@@ -1,5 +1,7 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import { ValuationNarrative } from "@/components/ValuationNarrative";
 
 interface ValuationData {
   lead: {
@@ -19,10 +21,10 @@ interface ValuationData {
   };
   estimate: {
     id: string;
-    low: number;
-    mostLikely: number;
-    high: number;
-    wholesale: number;
+    low: number | null;
+    mostLikely: number | null;
+    high: number | null;
+    wholesale: number | null;
     confidence: string;
     narrative: string;
     comps: Array<{
@@ -45,6 +47,12 @@ interface ValuationResultsProps {
 
 export default function ValuationResults({ data, onCallJames, onEmailReport }: ValuationResultsProps) {
   const { lead, vessel, estimate } = data;
+  const confidenceMatch = /Confidence:\s*(Low|Medium|High)/.exec(estimate.narrative ?? "");
+  const confidenceLevel = confidenceMatch?.[1] ?? estimate.confidence ?? "Medium";
+  const fmtCurrency = (value: number | null) =>
+    typeof value === "number"
+      ? value.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
+      : "—";
 
   return (
     <div className="fade-in">
@@ -59,11 +67,7 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
               <p className="text-blue-100">Based on current market conditions and comparable sales</p>
             </div>
             <div className="text-right">
-              <div className="bg-white bg-opacity-20 rounded-lg px-3 py-1">
-                <span className="text-sm font-medium" data-testid="text-confidence">
-                  Confidence: {estimate.confidence}
-                </span>
-              </div>
+              <ConfidenceBadge level={confidenceLevel} />
             </div>
           </div>
         </div>
@@ -129,27 +133,27 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
                 <div className="text-center p-4 bg-primary bg-opacity-10 rounded-lg">
                   <div className="text-sm text-white font-medium mb-1">Estimated Value</div>
                   <div className="text-3xl font-bold text-white" data-testid="text-most-likely-value">
-                    ${estimate.mostLikely.toLocaleString()}
+                    {fmtCurrency(estimate.mostLikely)}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="text-center p-3 bg-muted rounded-lg">
                     <div className="text-muted-foreground mb-1">Low</div>
                     <div className="font-semibold" data-testid="text-low-value">
-                      ${estimate.low.toLocaleString()}
+                      {fmtCurrency(estimate.low)}
                     </div>
                   </div>
                   <div className="text-center p-3 bg-muted rounded-lg">
                     <div className="text-muted-foreground mb-1">High</div>
                     <div className="font-semibold" data-testid="text-high-value">
-                      ${estimate.high.toLocaleString()}
+                      {fmtCurrency(estimate.high)}
                     </div>
                   </div>
                 </div>
                 <div className="text-center p-3 bg-secondary rounded-lg">
                   <div className="text-sm text-muted-foreground mb-1">Wholesale Estimate</div>
                   <div className="font-semibold text-foreground" data-testid="text-wholesale-value">
-                    ${estimate.wholesale.toLocaleString()}
+                    {fmtCurrency(estimate.wholesale)}
                   </div>
                 </div>
               </div>
@@ -160,11 +164,13 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
         {/* Market Analysis */}
         <CardContent className="p-6 border-b">
           <h3 className="text-lg font-semibold text-foreground mb-4">Market Analysis</h3>
-          <div className="prose prose-sm max-w-none">
-            <p className="text-muted-foreground leading-relaxed" data-testid="text-narrative">
-              {estimate.narrative}
-            </p>
-          </div>
+          <ValuationNarrative
+            narrative={estimate.narrative}
+            low={estimate.low}
+            mid={estimate.mostLikely}
+            high={estimate.high}
+            wholesale={estimate.wholesale}
+          />
         </CardContent>
 
         {/* Comparable Sales */}

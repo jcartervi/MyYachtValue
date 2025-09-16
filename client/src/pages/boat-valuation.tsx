@@ -2,15 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import BoatForm from "@/components/boat-form";
-import ValuationResults from "@/components/valuation-results";
-import ProgressIndicator from "@/components/progress-indicator";
 import { useToast } from "@/hooks/use-toast";
 import { useUTMTracking } from "@/hooks/use-utm-tracking";
 import HullPriceLogo from "@/components/HullPriceLogo";
 import { Stepper } from "@/components/Stepper";
 import { MetricCard } from "@/components/MetricCard";
-import { Confidence } from "@/components/Confidence";
 import { Loader } from "@/components/Loader";
+import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import { ValuationNarrative } from "@/components/ValuationNarrative";
 
 interface ValuationData {
   lead: {
@@ -30,10 +29,10 @@ interface ValuationData {
   };
   estimate: {
     id: string;
-    low: number;
-    mostLikely: number;
-    high: number;
-    wholesale: number;
+    low: number | null;
+    mostLikely: number | null;
+    high: number | null;
+    wholesale: number | null;
     confidence: string;
     narrative: string;
     comps: Array<{
@@ -53,6 +52,10 @@ export default function BoatValuation() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const utmParams = useUTMTracking();
+
+  const narrativeText = valuationData?.estimate?.narrative ?? "";
+  const confidenceMatch = /Confidence:\s*(Low|Medium|High)/.exec(narrativeText);
+  const confidenceLevel = confidenceMatch?.[1] ?? valuationData?.estimate?.confidence ?? "Medium";
 
   const handleValuationComplete = (data: ValuationData) => {
     setValuationData(data);
@@ -94,14 +97,24 @@ export default function BoatValuation() {
         ) : (
           valuationData && (
             <section className="hp-card" style={{padding:18, marginTop:16}}>
-              <div className="hp-grid-2">
-                <MetricCard label="Low" value={valuationData.estimate.low}/>
-                <MetricCard label="Most Likely" value={valuationData.estimate.mostLikely}/>
-                <MetricCard label="High" value={valuationData.estimate.high}/>
-                <MetricCard label="Wholesale" value={valuationData.estimate.wholesale}/>
+              <div className="space-y-4 md:space-y-6">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <ConfidenceBadge level={confidenceLevel} />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <MetricCard label="Low" value={valuationData.estimate.low} />
+                  <MetricCard label="Most Likely" value={valuationData.estimate.mostLikely} />
+                  <MetricCard label="High" value={valuationData.estimate.high} />
+                  <MetricCard label="Wholesale" value={valuationData.estimate.wholesale} />
+                </div>
+                <ValuationNarrative
+                  narrative={valuationData.estimate.narrative}
+                  low={valuationData.estimate.low}
+                  mid={valuationData.estimate.mostLikely}
+                  high={valuationData.estimate.high}
+                  wholesale={valuationData.estimate.wholesale}
+                />
               </div>
-              <Confidence level={valuationData.estimate.confidence as "Low" | "Medium" | "High"}/>
-              <p style={{marginTop:12, color:"#334155", whiteSpace:"pre-wrap"}}>{valuationData.estimate.narrative}</p>
             </section>
           )
         )}
