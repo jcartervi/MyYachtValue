@@ -197,6 +197,11 @@ export async function callOpenAI(
         model,
         messages,
         ...options,
+        temperature: 0,
+        top_p: 1,
+        n: 1,
+        seed: 7,
+        response_format: { type: "json_object" },
         timeout: 15000 // 15 second timeout
       });
 
