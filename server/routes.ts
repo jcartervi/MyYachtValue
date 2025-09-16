@@ -46,10 +46,6 @@ export async function postValuation(req: Request, res: Response) {
       ai = {};
     }
 
-    if (ai && typeof ai.narrative === "string") {
-      ai.narrative = ai.narrative.replace(/\s+/g, " ").trim();
-    }
-
     // Scrub banned phrases
     if (ai && typeof ai.narrative === "string") {
       ai.narrative = ai.narrative
