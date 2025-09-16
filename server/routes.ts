@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { submitFormRateLimit, generalRateLimit } from "./middleware/rateLimit";
 import { openAIHealth } from "./utils/ai-utils";
-import { openai } from "../backend/ai-utils";
+import { openai, OPENAI_MODEL } from "../backend/ai-utils";
 import { VALUATION_SYSTEM_PROMPT, buildValuationUserPayload } from "../backend/prompts/valuation";
 import { ValuationResult } from "../backend/types";
 
@@ -14,46 +14,41 @@ export async function postValuation(req: Request, res: Response) {
       return res.status(502).json({ error: "AIUnavailable", detail: "Missing OPENAI_API_KEY" });
     }
 
-    const userPayload = buildValuationUserPayload(payload);
-    const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-
     // (Optional debug) quick visibility in logs
     console.log("Valuation calling OpenAI", {
-      model,
+      model: OPENAI_MODEL,
       keyPresent: !!process.env.OPENAI_API_KEY,
     });
 
-    const resp = await openai.chat.completions.create({
-      model,
-      temperature: 0,
-      top_p: 1,
-      response_format: { type: "json_object" },
-      messages: [
+    const resp: any = await openai.responses.create({
+      model: OPENAI_MODEL,
+      input: [
         { role: "system", content: VALUATION_SYSTEM_PROMPT },
-        { role: "user", content: JSON.stringify(userPayload) }
-      ]
-    });
+        { role: "user", content: JSON.stringify(buildValuationUserPayload(payload)) }
+      ],
+      text: { format: { type: "json_object" } },
+      temperature: 0.1,
+      top_p: 1
+    } as any);
+
+    const text = resp.output_text
+      ?? resp.output?.[0]?.content?.[0]?.text?.value
+      ?? "{}";
 
     let ai: any;
     try {
-      const txt = resp.choices?.[0]?.message?.content;
-      if (!txt) throw new Error("AIUnavailable");
-      ai = JSON.parse(txt);
-    } catch (e) {
-      console.error("Valuation JSON parse error:", e, resp);
-      throw new Error("AIUnavailable");
+      ai = JSON.parse(text);
+    } catch {
+      return res.status(502).json({ error: "BadAIOutput", detail: "Non‑JSON AI response" });
     }
 
     if (!ai || typeof ai !== "object") {
       ai = {};
     }
 
+    // Scrub banned phrases
     if (ai && typeof ai.narrative === "string") {
       ai.narrative = ai.narrative
-        .replace(/Estimated Market Range:[^.]*\./gi, "")
-        .replace(/Most Likely:[^.]*\./gi, "")
-        .replace(/Wholesale:[^.]*\./gi, "")
-        .replace(/Confidence:\s*(Low|Medium|High)\.?/gi, "")
         .replace(/reduces value/gi, "")
         .replace(/limits pricing/gi, "")
         .replace(/\bissues\b/gi, "")
@@ -62,35 +57,61 @@ export async function postValuation(req: Request, res: Response) {
         .trim();
     }
 
-    const valuationLow = typeof ai?.valuation_low === "number" && Number.isFinite(ai.valuation_low)
+    // Clean formatting
+    const fmt = (n: number | null) => (
+      typeof n === "number"
+        ? n.toLocaleString("en-US", { maximumFractionDigits: 0 })
+        : "—"
+    );
+
+    const floor10k = (n: number | null) => (
+      typeof n === "number" && Number.isFinite(n)
+        ? Math.floor(n / 10000) * 10000
+        : null
+    );
+
+    const low = typeof ai?.valuation_low === "number" && Number.isFinite(ai.valuation_low)
       ? ai.valuation_low
       : null;
-    const valuationMid = typeof ai?.valuation_mid === "number" && Number.isFinite(ai.valuation_mid)
+    const mid = typeof ai?.valuation_mid === "number" && Number.isFinite(ai.valuation_mid)
       ? ai.valuation_mid
       : null;
-    const valuationHigh = typeof ai?.valuation_high === "number" && Number.isFinite(ai.valuation_high)
+    const high = typeof ai?.valuation_high === "number" && Number.isFinite(ai.valuation_high)
       ? ai.valuation_high
       : null;
-    const wholesale = typeof ai?.wholesale === "number" && Number.isFinite(ai.wholesale)
-      ? ai.wholesale
-      : null;
 
-    const assumptions = Array.isArray(ai?.assumptions)
-      ? ai.assumptions.filter((item: unknown): item is string => typeof item === "string")
-      : null;
+    const midFallback = low !== null && high !== null ? Math.round((low + high) / 2) : null;
+    const midBase = mid ?? midFallback;
+    const wholesaleRaw = typeof midBase === "number" ? midBase * 0.60 : null;
+    const wholesale = floor10k(wholesaleRaw);
 
-    const inputsEcho = ai && ai.inputs_echo && typeof ai.inputs_echo === "object" && !Array.isArray(ai.inputs_echo)
-      ? ai.inputs_echo
-      : userPayload.fields;
+    const tokenLine =
+      ` Estimated Market Range: $${fmt(low)}–$${fmt(high)}.` +
+      ` Most Likely: $${fmt(midBase)}.` +
+      ` Wholesale: ~$${fmt(wholesale)}.` +
+      ` Confidence: ${ai?.confidence ?? "Medium"}.`;
+
+    // Remove any AI-generated token lines to avoid duplicates
+    ai.narrative = typeof ai.narrative === "string" ? ai.narrative : "";
+
+    ai.narrative = ai.narrative
+      .replace(/Estimated Market Range:[^.]*\./i, "")
+      .replace(/Most Likely:[^.]*\./i, "")
+      .replace(/Wholesale:[^.]*\./i, "")
+      .replace(/Confidence:[^.]*\./i, "")
+      .trim();
+
+    // Append clean final version
+    ai.narrative = (ai.narrative.endsWith(".") ? ai.narrative : ai.narrative + ".") + tokenLine;
 
     const result: ValuationResult = {
-      valuation_low: valuationLow,
-      valuation_mid: valuationMid,
-      valuation_high: valuationHigh,
+      valuation_low: low,
+      valuation_mid: mid,
+      valuation_high: high,
       wholesale,
-      narrative: typeof ai.narrative === "string" && ai.narrative.length > 0 ? ai.narrative : null,
-      assumptions,
-      inputs_echo: inputsEcho
+      narrative: typeof ai.narrative === "string" ? ai.narrative : null,
+      assumptions: Array.isArray(ai.assumptions) ? ai.assumptions : null,
+      inputs_echo: payload
     };
 
     return res.json(result);
