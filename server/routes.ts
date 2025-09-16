@@ -41,6 +41,14 @@ export async function postValuation(req: Request, res: Response) {
       return res.status(502).json({ error: "BadAIOutput", detail: "Non‑JSON AI response" });
     }
 
+    if (ai && typeof ai.narrative === "string") {
+      ai.narrative = ai.narrative
+        .replace(/reduces value/gi, "")
+        .replace(/limits pricing/gi, "")
+        .replace(/\bissues\b/gi, "")
+        .replace(/\bconcerning\b/gi, "");
+    }
+
     const result: ValuationResult = {
       valuation_low: typeof ai.valuation_low === "number" ? ai.valuation_low : null,
       valuation_mid: typeof ai.valuation_mid === "number" ? ai.valuation_mid : null,
