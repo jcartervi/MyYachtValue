@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+const vesselSchema = z.object({
+  make: z
+    .string()
+    .trim()
+    .min(2, "Boat make must be at least 2 characters"),
+  makeModel: z.string().optional(),
+});
+
 export const leadVesselValidationSchema = z.object({
   // Lead validation
   name: z.string().optional(),
@@ -12,7 +20,7 @@ export const leadVesselValidationSchema = z.object({
   zipCode: z.string().optional(),
 
   // Vessel validation
-  makeModel: z.string().min(1, "Make & Model is required"),
+  vessel: vesselSchema,
   year: z.string().optional().refine((val) => {
     if (!val) return true;
     const num = parseInt(val);
