@@ -66,6 +66,9 @@ export function buildValuationUserPayload(input: Record<string, any>) {
     fuelType: input?.vesselData?.fuelType ?? input?.fuelType ?? null,
     hours: input?.vesselData?.hours ?? input?.hours ?? null,
     condition: input?.vesselData?.condition ?? input?.condition ?? null,
+    exteriorConditionScore: input?.condition?.exteriorScore ?? null,
+    interiorConditionScore: input?.condition?.interiorScore ?? null,
+    notableFeatures: input?.features ?? null,
     region: input?.region ?? input?.market_region ?? "South Florida"
   };
 

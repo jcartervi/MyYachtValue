@@ -115,3 +115,22 @@ export type Estimate = typeof estimates.$inferSelect;
 export type LeadActivity = typeof leadActivities.$inferSelect;
 export type CreateEstimateRequest = z.infer<typeof createEstimateRequestSchema>;
 
+export type HullCondition = {
+  interiorScore?: number | null;
+  exteriorScore: number;
+};
+
+export type HullFeatures = {
+  hardtop: boolean;
+  biminiTop: boolean;
+  passerelle: boolean;
+  aftDockingStation: boolean;
+  joystick: boolean;
+  bowThruster: boolean;
+  sternThruster: boolean;
+  hydraulicSwimPlatform: boolean;
+  teakDecking: boolean;
+  underwaterLights: boolean;
+  serviceRecordsUpToDate: boolean;
+};
+
