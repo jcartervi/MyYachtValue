@@ -6,6 +6,10 @@ const vesselSchema = z.object({
     .trim()
     .min(2, "Boat make must be at least 2 characters"),
   makeModel: z.string().optional(),
+  model: z
+    .string()
+    .trim()
+    .min(1, "Model must be provided"),
 });
 
 export const leadVesselValidationSchema = z.object({

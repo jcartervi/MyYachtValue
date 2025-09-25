@@ -25,6 +25,7 @@ const generateId = () => {
 interface VesselState {
   make: string;
   makeModel: string;
+  model: string;
 }
 
 interface FormData {
@@ -77,6 +78,7 @@ export default function BoatForm({
       vessel: {
         make: "",
         makeModel: "",
+        model: "",
       },
       year: "",
       loaFt: "",
@@ -104,15 +106,34 @@ export default function BoatForm({
             (savedData as any)?.vessel?.makeModel ??
             (typeof (savedData as any)?.makeModel === "string" ? (savedData as any).makeModel : undefined) ??
             ((savedData as any)?.vessel?.make ?? ""),
+          model:
+            (savedData as any)?.vessel?.model ??
+            (typeof (savedData as any)?.model === "string" ? (savedData as any).model : undefined) ??
+            "",
         },
       };
 
       const trimmedMake = normalizedData.vessel.make?.trim?.() ?? "";
       const trimmedMakeModel = normalizedData.vessel.makeModel?.trim?.() ?? trimmedMake;
+      const trimmedModel = normalizedData.vessel.model?.trim?.() ?? "";
+
+      const combined =
+        trimmedMake.length > 0 && trimmedModel.length > 0
+          ? `${trimmedMake} ${trimmedModel}`.trim()
+          : trimmedMakeModel;
+      const derivedModelFromCombined =
+        trimmedModel.length > 0
+          ? trimmedModel
+          : trimmedMake.length > 0 && combined.startsWith(trimmedMake)
+            ? combined.slice(trimmedMake.length).trim()
+            : combined === trimmedMake
+              ? ""
+              : combined;
 
       normalizedData.vessel = {
         make: trimmedMake,
-        makeModel: trimmedMakeModel,
+        makeModel: combined,
+        model: derivedModelFromCombined,
       };
 
       form.reset(normalizedData);
@@ -125,11 +146,35 @@ export default function BoatForm({
 
   // Save form data on every change
   useEffect(() => {
-    const subscription = form.watch((data) => {
-      saveFormData(data);
+    const subscription = form.watch((_, { name }) => {
+      const currentValues = form.getValues();
+
+      if (name === "vessel.make" || name === "vessel.model") {
+        const vesselState = currentValues.vessel ?? { make: "", makeModel: "", model: "" };
+        const trimmedMake = vesselState.make?.trim?.() ?? "";
+        const trimmedModel = vesselState.model?.trim?.() ?? "";
+        const combined =
+          trimmedMake.length > 0 && trimmedModel.length > 0
+            ? `${trimmedMake} ${trimmedModel}`.trim()
+            : trimmedMake;
+        const currentCombined = vesselState.makeModel ?? "";
+        if (combined !== currentCombined) {
+          form.setValue("vessel.makeModel", combined, {
+            shouldDirty: false,
+            shouldTouch: false,
+            shouldValidate: false,
+          });
+          currentValues.vessel = {
+            ...vesselState,
+            makeModel: combined,
+          };
+        }
+      }
+
+      saveFormData(currentValues);
     });
     return () => subscription.unsubscribe();
-  }, [form.watch, saveFormData]);
+  }, [form, form.watch, saveFormData]);
 
   // Initialize Turnstile when component mounts
   useEffect(() => {
@@ -183,7 +228,12 @@ export default function BoatForm({
 
       const state = form.getValues();
       state.vessel.make = trimmedMake;
-      state.vessel.makeModel = trimmedMake;
+      const existingModel = state.vessel.model?.trim?.() ?? "";
+      state.vessel.model = existingModel;
+      state.vessel.makeModel =
+        trimmedMake.length > 0 && existingModel.length > 0
+          ? `${trimmedMake} ${existingModel}`.trim()
+          : trimmedMake;
       form.reset(state);
       saveFormData(state);
       onStepChange(2);
@@ -204,16 +254,26 @@ export default function BoatForm({
         onLoadingChange(true);
 
         // Prepare request data
-        const vesselState = data.vessel ?? { make: "", makeModel: "" };
+        const vesselState = data.vessel ?? { make: "", makeModel: "", model: "" };
         const trimmedMake = vesselState.make?.trim?.() ?? "";
+        const trimmedModel = vesselState.model?.trim?.() ?? "";
         const fallbackCombined = vesselState.makeModel?.trim?.() ?? "";
-        const combined = fallbackCombined.length > 0 ? fallbackCombined : trimmedMake;
-        const [primaryMake, ...modelParts] = combined.split(/\s+/);
+        const preliminaryCombined =
+          trimmedMake.length > 0 && trimmedModel.length > 0
+            ? `${trimmedMake} ${trimmedModel}`.trim()
+            : fallbackCombined.length > 0
+              ? fallbackCombined
+              : trimmedMake;
+        const [primaryMake, ...modelParts] = preliminaryCombined.split(/\s+/);
         const derivedMake = trimmedMake.length > 0 ? trimmedMake : primaryMake || undefined;
-        const derivedModelCandidate = modelParts.join(" ").trim();
-        const normalizedModel =
-          combined !== trimmedMake && derivedModelCandidate.length > 0 ? derivedModelCandidate : undefined;
-        const trimmedHours = data.hours.trim();
+        const derivedModelCandidate =
+          trimmedModel.length > 0 ? trimmedModel : modelParts.join(" ").trim();
+        const normalizedModel = derivedModelCandidate.length > 0 ? derivedModelCandidate : undefined;
+        const combined =
+          derivedMake !== undefined
+            ? `${derivedMake}${normalizedModel ? ` ${normalizedModel}` : ""}`.trim()
+            : preliminaryCombined;
+        const trimmedHours = data.hours?.trim?.() ?? "";
         const parsedHours = trimmedHours === "" ? undefined : Number(trimmedHours);
         const normalizedHours =
           parsedHours === undefined || Number.isNaN(parsedHours) ? undefined : parsedHours;
@@ -512,6 +572,27 @@ export default function BoatForm({
           {currentStep === 2 && (
             <div className="hp-stack">
               <h2 style={{fontSize:20, fontWeight:700, color:"var(--ink)", marginBottom:8}}>Vessel Details</h2>
+                <FormField
+                  control={form.control}
+                  name="vessel.model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="hp-label">Model *</FormLabel>
+                      <FormControl>
+                        <Input
+                          className="hp-input"
+                          id="vessel.model"
+                          placeholder="Sundancer 340, Outrage 280, etc."
+                          required
+                          minLength={1}
+                          {...field}
+                          data-testid="input-model"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="year"
