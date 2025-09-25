@@ -12,6 +12,29 @@ const vesselSchema = z.object({
     .transform((value) => (typeof value === "string" ? value.trim() : value)),
 });
 
+const hullConditionSchema = z.object({
+  exteriorScore: z.coerce.number().int().min(1, "Score must be 1–10").max(10, "Score must be 1–10"),
+  interiorScore: z.union([
+    z.coerce.number().int().min(1).max(10),
+    z.null(),
+    z.undefined(),
+  ]),
+});
+
+const hullFeaturesSchema = z.object({
+  hardtop: z.boolean().default(false),
+  biminiTop: z.boolean().default(false),
+  passerelle: z.boolean().default(false),
+  aftDockingStation: z.boolean().default(false),
+  joystick: z.boolean().default(false),
+  bowThruster: z.boolean().default(false),
+  sternThruster: z.boolean().default(false),
+  hydraulicSwimPlatform: z.boolean().default(false),
+  teakDecking: z.boolean().default(false),
+  underwaterLights: z.boolean().default(false),
+  serviceRecordsUpToDate: z.boolean().default(false),
+});
+
 export const leadVesselValidationSchema = z.object({
   // Lead validation
   name: z.string().optional(),
@@ -36,7 +59,7 @@ export const leadVesselValidationSchema = z.object({
     return num >= 20 && num <= 500;
   }, "Length must be between 20 and 500 feet"),
   fuelType: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["gas", "diesel", "electric", "other"]).optional()),
-  condition: z.enum(["project", "fair", "average", "good", "excellent"]).default("good"),
+  vesselCondition: z.enum(["project", "fair", "average", "good", "excellent"]).default("good"),
   hours: z
     .string()
     .optional()
@@ -48,6 +71,8 @@ export const leadVesselValidationSchema = z.object({
       if (Number.isNaN(num)) return false;
       return num >= 0 && num <= 20000;
     }, "Engine hours must be between 0 and 20,000"),
+  condition: hullConditionSchema,
+  features: hullFeaturesSchema,
 });
 
 export type LeadVesselFormData = z.infer<typeof leadVesselValidationSchema>;

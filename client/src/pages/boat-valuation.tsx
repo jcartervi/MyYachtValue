@@ -56,7 +56,7 @@ export default function BoatValuation() {
 
   const handleValuationComplete = (data: ValuationData) => {
     setValuationData(data);
-    setCurrentStep(3);
+    setCurrentStep(4);
     
     toast({
       title: "Valuation Complete!",
@@ -78,9 +78,9 @@ export default function BoatValuation() {
   return (
     <div className="min-h-screen bg-background">
       <div style={{maxWidth:960, margin:"24px auto", padding:"0 16px"}}>
-        <Stepper step={currentStep} steps={["Contact", "Vessel", "Results"]} />
-        
-        {currentStep < 3 ? (
+        <Stepper step={currentStep} steps={["Contact", "Vessel", "Features & Condition", "Results"]} />
+
+        {currentStep < 4 ? (
           <section className="hp-card" style={{padding:18, marginTop:16}}>
             <BoatForm
               currentStep={currentStep}
@@ -109,7 +109,7 @@ export default function BoatValuation() {
         {isLoading && <div style={{marginTop:16}}><Loader/></div>}
 
         {/* Additional Services */}
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <div className="mt-12 grid md:grid-cols-2 gap-6">
             <Card className="text-center">
               <CardContent className="p-6">
@@ -149,7 +149,7 @@ export default function BoatValuation() {
         )}
 
         {/* Trust Indicators */}
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <Card className="mt-12 shadow-lg">
             <CardContent className="p-8">
               <div className="text-center mb-8">
