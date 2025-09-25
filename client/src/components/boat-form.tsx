@@ -22,6 +22,11 @@ const generateId = () => {
   return Math.random().toString(36).slice(2);
 };
 
+interface VesselState {
+  make: string;
+  makeModel: string;
+}
+
 interface FormData {
   // Lead data
   name: string;
@@ -31,7 +36,7 @@ interface FormData {
   city: string;
   zipCode: string;
   // Vessel data
-  makeModel: string;
+  vessel: VesselState;
   year: string;
   loaFt: string;
   fuelType: string;
@@ -69,7 +74,10 @@ export default function BoatForm({
       smsConsent: true,
       city: "",
       zipCode: "",
-      makeModel: "",
+      vessel: {
+        make: "",
+        makeModel: "",
+      },
       year: "",
       loaFt: "",
       fuelType: "",
@@ -84,11 +92,30 @@ export default function BoatForm({
   useEffect(() => {
     const savedData = loadFormData();
     if (savedData) {
-      Object.entries(savedData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          form.setValue(key as keyof FormData, value as string | boolean);
-        }
-      });
+      const normalizedData: FormData = {
+        ...form.getValues(),
+        ...(savedData as Partial<FormData>),
+        vessel: {
+          make:
+            (savedData as any)?.vessel?.make ??
+            (typeof (savedData as any)?.make === "string" ? (savedData as any).make : undefined) ??
+            (typeof (savedData as any)?.makeModel === "string" ? (savedData as any).makeModel : ""),
+          makeModel:
+            (savedData as any)?.vessel?.makeModel ??
+            (typeof (savedData as any)?.makeModel === "string" ? (savedData as any).makeModel : undefined) ??
+            ((savedData as any)?.vessel?.make ?? ""),
+        },
+      };
+
+      const trimmedMake = normalizedData.vessel.make?.trim?.() ?? "";
+      const trimmedMakeModel = normalizedData.vessel.makeModel?.trim?.() ?? trimmedMake;
+
+      normalizedData.vessel = {
+        make: trimmedMake,
+        makeModel: trimmedMakeModel,
+      };
+
+      form.reset(normalizedData);
       toast({
         title: "Form Data Restored",
         description: "Your previously entered information has been restored.",
@@ -134,13 +161,18 @@ export default function BoatForm({
       // Validate contact information
       // Debug logging removed for production
       
-      const contactValid = data.email && data.phone && data.makeModel;
+      const trimmedMake = data.vessel?.make?.trim?.() ?? "";
+      const contactValid = Boolean(data.email && data.phone && trimmedMake.length >= 2);
       if (!contactValid) {
         const missingFields = [];
         if (!data.email) missingFields.push("email");
         if (!data.phone) missingFields.push("phone");
-        if (!data.makeModel) missingFields.push("boat make & model");
-        
+        if (trimmedMake.length < 2) missingFields.push("boat make");
+
+        if (trimmedMake !== data.vessel.make) {
+          form.setValue("vessel.make", trimmedMake);
+        }
+
         toast({
           title: "Required Fields Missing",
           description: `Please provide: ${missingFields.join(", ")}`,
@@ -148,6 +180,12 @@ export default function BoatForm({
         });
         return;
       }
+
+      const state = form.getValues();
+      state.vessel.make = trimmedMake;
+      state.vessel.makeModel = trimmedMake;
+      form.reset(state);
+      saveFormData(state);
       onStepChange(2);
       return;
     }
@@ -166,11 +204,15 @@ export default function BoatForm({
         onLoadingChange(true);
 
         // Prepare request data
-        const trimmedMakeModel = data.makeModel.trim();
-        const [primaryMake, ...modelParts] = trimmedMakeModel.split(/\s+/);
-        const derivedMake = primaryMake || undefined;
-        const derivedModel = modelParts.join(" ").trim();
-        const normalizedModel = derivedModel.length > 0 ? derivedModel : undefined;
+        const vesselState = data.vessel ?? { make: "", makeModel: "" };
+        const trimmedMake = vesselState.make?.trim?.() ?? "";
+        const fallbackCombined = vesselState.makeModel?.trim?.() ?? "";
+        const combined = fallbackCombined.length > 0 ? fallbackCombined : trimmedMake;
+        const [primaryMake, ...modelParts] = combined.split(/\s+/);
+        const derivedMake = trimmedMake.length > 0 ? trimmedMake : primaryMake || undefined;
+        const derivedModelCandidate = modelParts.join(" ").trim();
+        const normalizedModel =
+          combined !== trimmedMake && derivedModelCandidate.length > 0 ? derivedModelCandidate : undefined;
         const trimmedHours = data.hours.trim();
         const parsedHours = trimmedHours === "" ? undefined : Number(trimmedHours);
         const normalizedHours =
@@ -194,7 +236,7 @@ export default function BoatForm({
             zipCode: data.zipCode || undefined,
           },
           vesselData: {
-            makeModel: data.makeModel,
+            makeModel: combined,
             make: derivedMake,
             model: normalizedModel,
             year: vesselYear,
@@ -255,7 +297,7 @@ export default function BoatForm({
           isPremiumLead: false,
         };
 
-        const brandCandidate = derivedMake ?? trimmedMakeModel;
+        const brandCandidate = derivedMake ?? combined;
         const safeBrand = brandCandidate && brandCandidate.length > 0 ? brandCandidate : "Unknown";
         const lead = {
           id: generateId(),
@@ -409,16 +451,19 @@ export default function BoatForm({
 
                 <FormField
                   control={form.control}
-                  name="makeModel"
+                  name="vessel.make"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="hp-label">Boat Make & Model *</FormLabel>
+                      <FormLabel className="hp-label">Boat Make *</FormLabel>
                       <FormControl>
-                        <Input 
+                        <Input
                           className="hp-input"
-                          placeholder="Sunseeker 68 Sport Boat, Azimut 55, Princess V65, etc." 
-                          {...field} 
-                          data-testid="input-make-model"
+                          id="vessel.make"
+                          placeholder="Sea Ray, Boston Whaler, Azimut…"
+                          required
+                          minLength={2}
+                          {...field}
+                          data-testid="input-make"
                         />
                       </FormControl>
                       <FormMessage />
