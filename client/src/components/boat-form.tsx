@@ -203,37 +203,41 @@ export default function BoatForm({
 
   const onSubmit = async (data: FormData) => {
     if (currentStep === 1) {
-      // Validate contact information
-      // Debug logging removed for production
-      
-      const trimmedMake = data.vessel?.make?.trim?.() ?? "";
-      const contactValid = Boolean(data.email && data.phone && trimmedMake.length >= 2);
-      if (!contactValid) {
-        const missingFields = [];
-        if (!data.email) missingFields.push("email");
-        if (!data.phone) missingFields.push("phone");
-        if (trimmedMake.length < 2) missingFields.push("boat make");
+      const stepOneFields = [
+        "email",
+        "phone",
+        "city",
+        "zipCode",
+        "vessel.make",
+      ] as const;
 
-        if (trimmedMake !== data.vessel.make) {
-          form.setValue("vessel.make", trimmedMake);
-        }
-
-        toast({
-          title: "Required Fields Missing",
-          description: `Please provide: ${missingFields.join(", ")}`,
-          variant: "destructive",
-        });
+      const isStepOneValid = await form.trigger(stepOneFields, { shouldFocus: true });
+      if (!isStepOneValid) {
         return;
       }
 
       const state = form.getValues();
-      state.vessel.make = trimmedMake;
+      const trimmedMake = data.vessel?.make?.trim?.() ?? "";
       const existingModel = state.vessel.model?.trim?.() ?? "";
+
+      if (trimmedMake !== state.vessel.make) {
+        form.setValue("vessel.make", trimmedMake, {
+          shouldDirty: false,
+          shouldTouch: false,
+          shouldValidate: false,
+        });
+      }
+
+      state.vessel.make = trimmedMake;
       state.vessel.model = existingModel;
-      state.vessel.makeModel =
-        trimmedMake.length > 0 && existingModel.length > 0
-          ? `${trimmedMake} ${existingModel}`.trim()
-          : trimmedMake;
+      state.vessel.makeModel = trimmedMake.length > 0 ? trimmedMake : "";
+
+      form.setValue("vessel.makeModel", state.vessel.makeModel, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: false,
+      });
+
       form.reset(state);
       saveFormData(state);
       onStepChange(2);
@@ -241,6 +245,39 @@ export default function BoatForm({
     }
 
     if (currentStep === 2) {
+      const stepTwoFields = [
+        "vessel.model",
+        "year",
+        "loaFt",
+        "fuelType",
+        "condition",
+        "hours",
+      ] as const;
+
+      const rawModelValue = form.getValues("vessel.model") ?? "";
+      const isStepTwoValid = await form.trigger(stepTwoFields, { shouldFocus: true });
+      const trimmedModelValue = rawModelValue.trim();
+
+      if (!isStepTwoValid || trimmedModelValue.length === 0) {
+        if (trimmedModelValue.length === 0) {
+          form.setError("vessel.model", {
+            type: "manual",
+            message: "Model must be provided",
+          });
+        }
+        return;
+      }
+
+      form.clearErrors("vessel.model");
+
+      if (trimmedModelValue !== rawModelValue) {
+        form.setValue("vessel.model", trimmedModelValue, {
+          shouldDirty: false,
+          shouldTouch: false,
+          shouldValidate: false,
+        });
+      }
+
       if (isTurnstileConfigured && !turnstileToken) {
         toast({
           title: "Security Verification Required",

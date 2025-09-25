@@ -8,8 +8,8 @@ const vesselSchema = z.object({
   makeModel: z.string().optional(),
   model: z
     .string()
-    .trim()
-    .min(1, "Model must be provided"),
+    .optional()
+    .transform((value) => (typeof value === "string" ? value.trim() : value)),
 });
 
 export const leadVesselValidationSchema = z.object({
