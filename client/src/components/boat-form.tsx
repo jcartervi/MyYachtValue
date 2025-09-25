@@ -991,7 +991,6 @@ export default function BoatForm({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="hp-label">Overall Interior Condition (1–10)</FormLabel>
-                          <FormDescription>Optional</FormDescription>
                           <FormControl>
                             <div>
                               <div className="flex justify-between text-xs text-muted-foreground mb-2">
