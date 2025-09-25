@@ -941,7 +941,7 @@ export default function BoatForm({
                       name="condition.exteriorScore"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="hp-label">Overall Exterior Condition (1–10)</FormLabel>
+                          <FormLabel className="hp-label">Overall Exterior Condition</FormLabel>
                           <FormControl>
                             <div>
                               <div className="flex justify-between text-xs text-muted-foreground mb-2">
@@ -990,7 +990,7 @@ export default function BoatForm({
                       name="condition.interiorScore"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="hp-label">Overall Interior Condition (1–10)</FormLabel>
+                          <FormLabel className="hp-label">Overall Interior Condition</FormLabel>
                           <FormControl>
                             <div>
                               <div className="flex justify-between text-xs text-muted-foreground mb-2">
