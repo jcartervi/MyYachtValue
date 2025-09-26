@@ -1,17 +1,38 @@
-import { Switch, Route } from "wouter";
+import * as React from "react";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import HeroHeader from "@/components/HeroHeader";
-import BoatValuation from "@/pages/boat-valuation";
-import NotFound from "@/pages/not-found";
+import BoatValuationPage from "@/pages/BoatValuation";
+import NotFound from "@/pages/NotFound";
+
+function Redirect({ to }: { to: string }) {
+  const [, setLocation] = useLocation();
+
+  React.useEffect(() => {
+    setLocation(to);
+  }, [setLocation, to]);
+
+  return null;
+}
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={BoatValuation} />
-      <Route path="/valuation" component={BoatValuation} />
+      <Route path="/" component={BoatValuationPage} />
+      <Route path="/boat-valuation" component={BoatValuationPage} />
+      <Route path="/get-estimate" component={BoatValuationPage} />
+      <Route path="/valuation">
+        {() => <Redirect to="/boat-valuation" />}
+      </Route>
+      <Route path="/results">
+        {() => <Redirect to="/boat-valuation" />}
+      </Route>
+      <Route path="/estimate">
+        {() => <Redirect to="/boat-valuation" />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -20,13 +41,13 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <HeroHeader />
-        <main id="estimate" className="max-w-5xl mx-auto px-6 py-8">
-          <Router />
-        </main>
-      </TooltipProvider>
+        <TooltipProvider>
+          <Toaster />
+          <HeroHeader />
+          <main id="estimate" className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6">
+            <Router />
+          </main>
+        </TooltipProvider>
     </QueryClientProvider>
   );
 }
