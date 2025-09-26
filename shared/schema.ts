@@ -128,6 +128,7 @@ export type HullFeatures = {
   joystick: boolean;
   bowThruster: boolean;
   sternThruster: boolean;
+  stabilization: boolean;
   hydraulicSwimPlatform: boolean;
   teakDecking: boolean;
   underwaterLights: boolean;

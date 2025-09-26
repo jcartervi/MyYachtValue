@@ -36,6 +36,7 @@ const createDefaultFeatures = (): FormFeatures => ({
   joystick: false,
   bowThruster: false,
   sternThruster: false,
+  stabilization: false,
   hydraulicSwimPlatform: false,
   teakDecking: false,
   underwaterLights: false,
@@ -52,6 +53,7 @@ const FEATURE_OPTIONS: Array<{ key: FeatureKey; label: string; testId: string }>
   { key: "joystick", label: "Joystick", testId: "toggle-joystick" },
   { key: "bowThruster", label: "Bow Thruster", testId: "toggle-bow-thruster" },
   { key: "sternThruster", label: "Stern Thruster", testId: "toggle-stern-thruster" },
+  { key: "stabilization", label: "Fin or Gyro Stabilization", testId: "toggle-stabilization" },
   { key: "hydraulicSwimPlatform", label: "Hydraulic Swim Platform", testId: "toggle-hydraulic-platform" },
   { key: "teakDecking", label: "Teak Decking", testId: "toggle-teak" },
   { key: "underwaterLights", label: "Underwater Lights", testId: "toggle-underwater-lights" },
@@ -77,6 +79,7 @@ type FeatureKey =
   | "joystick"
   | "bowThruster"
   | "sternThruster"
+  | "stabilization"
   | "hydraulicSwimPlatform"
   | "teakDecking"
   | "underwaterLights"
