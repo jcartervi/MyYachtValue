@@ -29,6 +29,7 @@ const hullFeaturesSchema = z.object({
   joystick: z.boolean().default(false),
   bowThruster: z.boolean().default(false),
   sternThruster: z.boolean().default(false),
+  stabilization: z.boolean().default(false),
   hydraulicSwimPlatform: z.boolean().default(false),
   teakDecking: z.boolean().default(false),
   underwaterLights: z.boolean().default(false),
