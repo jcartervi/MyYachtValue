@@ -1,4 +1,5 @@
 import MinimalGauge from "./MinimalGauge";
+import { LABELS } from "./labels";
 
 export default function ResultsCard({
   wholesale,
@@ -14,7 +15,7 @@ export default function ResultsCard({
               Valuation Results
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Range from Wholesale to Replacement Cost. Needle marks Market Value.
+              Range from {LABELS.wholesale} to {LABELS.replacement}. Needle marks {LABELS.market}.
             </p>
           </div>
 
@@ -26,16 +27,16 @@ export default function ResultsCard({
               size={420}
               trackWidth={18}
               valueWidth={18}
-              ariaLabel="Valuation gauge. Needle indicates Market Value."
+              ariaLabel={`Valuation gauge. Needle indicates ${LABELS.market}.`}
             />
           </div>
         </div>
 
         {/* Show values ONLY here */}
         <div className="grid md:grid-cols-3 gap-4 p-4 md:p-6 border-t border-slate-100">
-          <ValueTile label="Wholesale" value={wholesale} testId="wholesale-tile" />
-          <ValueTile label="Market Value" value={market} emphasis testId="market-tile" />
-          <ValueTile label="Replacement Cost" value={replacement} testId="replacement-tile" />
+          <ValueTile label={LABELS.wholesale} value={wholesale} testId="wholesale-tile" />
+          <ValueTile label={LABELS.market} value={market} emphasis testId="market-tile" />
+          <ValueTile label={LABELS.replacement} value={replacement} testId="replacement-tile" />
         </div>
       </div>
     </div>
