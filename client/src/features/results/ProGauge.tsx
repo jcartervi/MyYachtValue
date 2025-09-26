@@ -1,332 +1,363 @@
 import * as React from "react";
 
 import { formatUSD } from "./format";
-import { LABELS, type LabelKey } from "./labels";
 
-type ProGaugeProps = {
-  wholesale: number;
-  market: number;
-  replacement: number;
+export type GaugePoint = {
+  id: string;
+  label: string;
+  value: number;
+};
+
+export type ProGaugeProps = {
+  min: number;
+  max: number;
+  value: number;
+  points: GaugePoint[];
   size?: number;
   trackWidth?: number;
   valueWidth?: number;
+  onScrub?: (value?: number) => void;
   ariaLabel?: string;
 };
 
-type GaugePoint = {
-  key: LabelKey;
-  value: number;
-  ratio: number;
-  angle: number;
-  trackX: number;
-  trackY: number;
-  labelX: number;
-  labelY: number;
-  tileX: number;
-  tileY: number;
-};
-
-type GaugePointMap = Record<LabelKey, GaugePoint>;
-
-const DEFAULT_SIZE = 600;
+const DEFAULT_SIZE = 420;
 const DEFAULT_TRACK_WIDTH = 16;
 const DEFAULT_VALUE_WIDTH = 16;
-const EDGE_PADDING_DEGREES = 10;
-const LABEL_RADIUS_OFFSET = 86;
-const TILE_RADIUS_FACTOR = 0.7;
-const NEEDLE_MARGIN = 18;
-const LABEL_CLAMP = 32;
-const TOOLTIP_PADDING = 90;
-const TOOLTIP_VERTICAL_OFFSET = 56;
+
+const PAD_DEG = 12;
+const PAD = (PAD_DEG * Math.PI) / 180;
+const angle = (t: number) => (Math.PI - PAD) - (Math.PI - 2 * PAD) * t;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
-const polarToCartesian = (cx: number, cy: number, radius: number, angle: number) => ({
-  x: cx + radius * Math.cos(angle),
-  y: cy + radius * Math.sin(angle),
+const xy = (ang: number, radius: number, cx: number, cy: number) => ({
+  x: cx + Math.cos(ang) * radius,
+  y: cy + Math.sin(ang) * radius,
 });
 
 export default function ProGauge({
-  wholesale,
-  market,
-  replacement,
+  min,
+  max,
+  value,
+  points,
   size = DEFAULT_SIZE,
   trackWidth = DEFAULT_TRACK_WIDTH,
   valueWidth = DEFAULT_VALUE_WIDTH,
+  onScrub,
   ariaLabel = "Valuation gauge",
 }: ProGaugeProps) {
-  const rawId = React.useId();
-  const gradientId = React.useMemo(
-    () => `gaugeGradient-${rawId.replace(/:/g, "")}`,
-    [rawId],
+  const svgRef = React.useRef<SVGSVGElement | null>(null);
+  const scrubValueRef = React.useRef<number | null>(null);
+  const prefersReducedMotion = React.useMemo(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return false;
+    }
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  const safePoints = React.useMemo(
+    () => points.filter((pt) => Number.isFinite(pt.value)),
+    [points],
   );
-  const width = size;
-  const height = Math.round(size * 0.62);
-  const cx = width / 2;
-  const cy = height * 0.88;
-  const radius = Math.max(40, Math.min(cx, cy) - Math.max(trackWidth, valueWidth) - 8);
 
-  const edgePadding = (EDGE_PADDING_DEGREES * Math.PI) / 180;
-  const startAngle = Math.PI + edgePadding;
-  const endAngle = -edgePadding;
-  const sweep = endAngle - startAngle;
+  const fallbackMin = safePoints.length
+    ? Math.min(...safePoints.map((pt) => pt.value))
+    : 0;
+  const fallbackMax = safePoints.length
+    ? Math.max(...safePoints.map((pt) => pt.value))
+    : fallbackMin + 1;
 
-  const safeWholesale = Number.isFinite(wholesale) ? wholesale : 0;
-  const safeReplacement = Number.isFinite(replacement)
-    ? replacement
-    : safeWholesale + 1;
+  const domainMin = Number.isFinite(min)
+    ? Math.min(min, fallbackMin)
+    : fallbackMin;
+  const domainMax = Number.isFinite(max)
+    ? Math.max(max, fallbackMax)
+    : fallbackMax;
+  const span = domainMax - domainMin || 1;
 
-  const minValue = Math.min(safeWholesale, safeReplacement);
-  const maxValue = Math.max(safeWholesale, safeReplacement);
-  const span = maxValue - minValue || 1;
+  const clampValue = React.useCallback(
+    (v: number) => clamp(v, domainMin, domainMax),
+    [domainMin, domainMax],
+  );
+  const tOf = React.useCallback(
+    (v: number) => (clampValue(v) - domainMin) / span,
+    [clampValue, domainMin, span],
+  );
+  const vOf = React.useCallback(
+    (t: number) => clampValue(domainMin + t * span),
+    [clampValue, domainMin, span],
+  );
 
-  const normalized = (value: number) =>
-    span === 0 ? 0.5 : (clamp(value, minValue, maxValue) - minValue) / span;
+  const w = size;
+  const h = Math.round(size * 0.56);
+  const cx = w / 2;
+  const cy = Math.round(h * 0.9);
+  const radius = Math.max(
+    16,
+    Math.min(cx, cy) - Math.max(trackWidth, valueWidth) - 8,
+  );
 
-  const keys: LabelKey[] = ["wholesale", "market", "replacement"];
+  const activeT = tOf(value);
+  const needleAng = angle(activeT);
+  const needleLen = Math.max(24, radius - valueWidth - 14);
+  const needleTip = xy(needleAng, needleLen, cx, cy);
 
-  const fallbackValue = minValue + span / 2;
-  const safeMarket = Number.isFinite(market) ? market : fallbackValue;
+  const arc = React.useCallback(
+    (from: number, to: number) => {
+      const start = angle(from);
+      const end = angle(to);
+      const startPoint = xy(start, radius, cx, cy);
+      const endPoint = xy(end, radius, cx, cy);
+      const largeArc = Math.abs(end - start) > Math.PI ? 1 : 0;
+      const sweepFlag = end > start ? 1 : 0;
 
-  const ratios: Record<LabelKey, number> = {
-    wholesale: normalized(safeWholesale),
-    market: normalized(safeMarket),
-    replacement: normalized(safeReplacement),
-  };
+      return `M ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} ${sweepFlag} ${endPoint.x} ${endPoint.y}`;
+    },
+    [cx, cy, radius],
+  );
 
-  const angleOf = (ratio: number) => startAngle + sweep * ratio;
-
-  const labelRadius = radius + LABEL_RADIUS_OFFSET;
-  const tileRadius = radius * TILE_RADIUS_FACTOR;
-
-  const valueMap: Record<LabelKey, number> = {
-    wholesale: safeWholesale,
-    market: safeMarket,
-    replacement: safeReplacement,
-  };
-
-  const points: GaugePoint[] = keys.map((key) => {
-    const ratio = ratios[key];
-    const angle = angleOf(ratio);
-    const { x: trackX, y: trackY } = polarToCartesian(cx, cy, radius, angle);
-    const { x: labelX, y: labelY } = polarToCartesian(cx, cy, labelRadius, angle);
-    const { x: tileX, y: tileY } = polarToCartesian(cx, cy, tileRadius, angle);
-
-    return {
-      key,
-      value: valueMap[key],
-      ratio,
-      angle,
-      trackX,
-      trackY,
-      labelX,
-      labelY,
-      tileX,
-      tileY,
-    };
-  });
-
-  const pointMap = points.reduce<GaugePointMap>((acc, point) => {
-    acc[point.key] = point;
-    return acc;
-  }, {} as GaugePointMap);
-
-  const defaultKey: LabelKey = "market";
-  const [activeKey, setActiveKey] = React.useState<LabelKey>(defaultKey);
-
-  const clampedMarket = clamp(safeMarket, minValue, maxValue);
-  const activePoint = (pointMap[activeKey] ?? pointMap[defaultKey])!;
-
-  const activeRatio = activePoint?.ratio ?? normalized(clampedMarket);
-  const needleAngle = angleOf(activeRatio);
-  const needleLength = Math.max(20, tileRadius - NEEDLE_MARGIN);
-  const { x: needleX, y: needleY } = polarToCartesian(cx, cy, needleLength, needleAngle);
-
-  const arcPath = (from: number, to: number, lineRadius: number) => {
-    const start = angleOf(from);
-    const end = angleOf(to);
-    const startPoint = polarToCartesian(cx, cy, lineRadius, start);
-    const endPoint = polarToCartesian(cx, cy, lineRadius, end);
-    const largeArc = Math.abs(end - start) > Math.PI ? 1 : 0;
-    const sweepFlag = end > start ? 1 : 0;
-
-    return `M ${startPoint.x} ${startPoint.y} A ${lineRadius} ${lineRadius} 0 ${largeArc} ${sweepFlag} ${endPoint.x} ${endPoint.y}`;
-  };
-
-  const labelDescription = `${ariaLabel}. ${LABELS.wholesale} ${formatUSD(safeWholesale)}. ${LABELS.market} ${formatUSD(
-    clampedMarket,
-  )}. ${LABELS.replacement} ${formatUSD(safeReplacement)}.`;
-
-  const labelEntries = points.map((point) => {
-    const cosine = Math.cos(point.angle);
-    const isLeft = cosine < -0.15;
-    const isRight = cosine > 0.15;
-    const textAnchor: "start" | "middle" | "end" = isLeft ? "end" : isRight ? "start" : "middle";
-    const clampedX = clamp(point.labelX, LABEL_CLAMP, width - LABEL_CLAMP);
-    const clampedY = clamp(point.labelY, 36, height - 12);
-
-    return {
-      ...point,
-      textAnchor,
-      clampedX,
-      clampedY,
-    };
-  });
-
-  const basePoint = pointMap[defaultKey]!;
+  const updateScrub = React.useCallback(
+    (next: number | null) => {
+      if (!onScrub) return;
+      const current = scrubValueRef.current;
+      if (current === next) return;
+      scrubValueRef.current = next;
+      onScrub(next ?? undefined);
+    },
+    [onScrub],
+  );
 
   React.useEffect(() => {
-    setActiveKey(defaultKey);
-  }, [wholesale, market, replacement]);
+    scrubValueRef.current = null;
+  }, [value, domainMin, domainMax]);
 
-  const tooltipSource = pointMap[activeKey] ?? basePoint;
-  const tooltipX = clamp(tooltipSource.tileX, TOOLTIP_PADDING, width - TOOLTIP_PADDING);
-  const tooltipY = clamp(
-    tooltipSource.tileY - TOOLTIP_VERTICAL_OFFSET,
-    24,
-    height - 24,
+  const handlePointerMove = React.useCallback(
+    (event: React.PointerEvent<SVGSVGElement>) => {
+      if (!svgRef.current) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      const px = event.clientX - rect.left;
+      const py = event.clientY - rect.top;
+      const ang = Math.atan2(py - cy, px - cx);
+      const t = clamp((Math.PI - PAD - ang) / (Math.PI - 2 * PAD), 0, 1);
+      const nextValue = vOf(t);
+      updateScrub(nextValue);
+    },
+    [cx, cy, updateScrub, vOf],
   );
 
-  const tooltipLeft = `${(tooltipX / width) * 100}%`;
-  const tooltipTop = `${(tooltipY / height) * 100}%`;
+  const handlePointerLeave = React.useCallback(() => {
+    updateScrub(null);
+  }, [updateScrub]);
 
-  const handleActivate = (key: LabelKey) => () => setActiveKey(key);
-  const handleReset = () => setActiveKey(defaultKey);
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<SVGSVGElement>) => {
+      if (!onScrub) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      const base = scrubValueRef.current ?? value;
+      const delta = span / 40;
+      const next = clampValue(base + direction * delta);
+      scrubValueRef.current = next;
+      onScrub(next);
+    },
+    [clampValue, onScrub, span, value],
+  );
+
+  const handleBlur = React.useCallback(() => {
+    updateScrub(null);
+  }, [updateScrub]);
+
+  const tickCount = 9;
+  const ticks = React.useMemo(
+    () =>
+      Array.from({ length: tickCount }, (_, index) => {
+        const t = index / (tickCount - 1);
+        const ang = angle(t);
+        const inner = xy(ang, radius - 10, cx, cy);
+        const outer = xy(ang, radius - 2, cx, cy);
+        return { id: index, inner, outer };
+      }),
+    [cx, cy, radius],
+  );
+
+  const interactive = Boolean(onScrub);
+  const ariaProps = interactive
+    ? {
+        role: "slider" as const,
+        "aria-valuemin": domainMin,
+        "aria-valuemax": domainMax,
+        "aria-valuenow": clampValue(value),
+        "aria-valuetext": formatUSD(clampValue(value)),
+      }
+    : ({ role: "img" as const } as const);
+
+  const haloStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      paintOrder: "stroke",
+      stroke: "white",
+      strokeWidth: 3,
+      strokeLinejoin: "round",
+      whiteSpace: "nowrap",
+    }),
+    [],
+  );
+
+  const currencyFormatter = React.useMemo(() => {
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      });
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  const getValueParts = React.useCallback(
+    (val: number) => {
+      if (currencyFormatter && typeof currencyFormatter.formatToParts === "function") {
+        try {
+          return currencyFormatter.formatToParts(val);
+        } catch (error) {
+          // fall back to simple string
+        }
+      }
+      return [
+        {
+          type: "literal",
+          value: formatUSD(val),
+        } as Intl.NumberFormatPart,
+      ];
+    },
+    [currencyFormatter],
+  );
 
   return (
-    <div className="relative">
-      <svg
-        role="img"
-        aria-label={labelDescription}
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-auto"
-        focusable={false}
-      >
-        <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#cbd5f5" />
-            <stop offset="100%" stopColor="#1d4ed8" />
-          </linearGradient>
-        </defs>
-        <path
-          d={arcPath(0, 1, radius)}
-          fill="none"
-          stroke="#E2E8F0"
-          strokeWidth={trackWidth}
-          strokeLinecap="round"
-        />
-        <path
-          d={arcPath(0, activeRatio, radius)}
-          fill="none"
-          stroke={`url(#${gradientId})`}
-          strokeWidth={valueWidth}
-          strokeLinecap="round"
-          className="transition-all duration-500 ease-out motion-reduce:transition-none"
-        />
+    <svg
+      ref={svgRef}
+      {...ariaProps}
+      aria-label={ariaLabel}
+      aria-description="Use arrow keys or hover to preview."
+      viewBox={`0 0 ${w} ${h}`}
+      className="h-auto w-full"
+      tabIndex={interactive ? 0 : -1}
+      onPointerMove={handlePointerMove}
+      onPointerEnter={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      onPointerUp={handlePointerLeave}
+      onKeyDown={interactive ? handleKeyDown : undefined}
+      onBlur={handleBlur}
+      style={{
+        overflow: "hidden",
+        cursor: interactive ? "pointer" : "default",
+        transition: prefersReducedMotion ? "none" : "filter 150ms ease",
+      }}
+      data-prefers-reduced-motion={prefersReducedMotion ? "true" : "false"}
+    >
+      <path
+        d={arc(0, 1)}
+        stroke="#E6E8EC"
+        strokeWidth={trackWidth}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d={arc(0, activeT)}
+        stroke="#0F172A"
+        strokeWidth={valueWidth + 1}
+        strokeLinecap="round"
+        fill="none"
+      />
 
-        {labelEntries.map((entry) => (
-          <g key={entry.key}>
-            <text
-              x={entry.clampedX}
-              y={entry.clampedY - 14}
-              textAnchor={entry.textAnchor}
-              className="select-none uppercase"
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                fill: "#64748B",
-                stroke: "#FFFFFF",
-                strokeWidth: 3,
-                paintOrder: "stroke fill",
-              }}
-            >
-              {LABELS[entry.key]}
-            </text>
-            <text
-              x={entry.clampedX}
-              y={entry.clampedY + 6}
-              textAnchor={entry.textAnchor}
-              className="select-none"
-              style={{
-                fontSize: 20,
-                fontWeight: 600,
-                fill: "#0F172A",
-                stroke: "#FFFFFF",
-                strokeWidth: 3,
-                paintOrder: "stroke fill",
-              }}
-            >
-              {formatUSD(entry.value)}
-            </text>
-          </g>
-        ))}
-
-        {points.map((point) => (
-          <circle
-            key={`marker-${point.key}`}
-            cx={point.trackX}
-            cy={point.trackY}
-            r={6}
-            fill={point.key === activeKey ? "#1D4ED8" : "#94A3B8"}
-            className="transition-colors duration-300 motion-reduce:transition-none"
-          />
-        ))}
-
+      {ticks.map((tick) => (
         <line
-          x1={cx}
-          y1={cy}
-          x2={needleX}
-          y2={needleY}
+          key={tick.id}
+          x1={tick.inner.x}
+          y1={tick.inner.y}
+          x2={tick.outer.x}
+          y2={tick.outer.y}
           stroke="#0F172A"
-          strokeWidth={3}
-          strokeLinecap="round"
-          className="transition-all duration-500 ease-out motion-reduce:transition-none"
+          strokeWidth={1.5}
+          opacity={0.35}
         />
-        <circle cx={cx} cy={cy} r={8} fill="#0F172A" />
-      </svg>
+      ))}
 
-      <div className="pointer-events-none absolute inset-0">
-        <div
-          className="pointer-events-none absolute"
-          style={{
-            left: tooltipLeft,
-            top: tooltipTop,
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-          <div className="pointer-events-none whitespace-nowrap rounded-full bg-slate-900/90 px-3 py-1 text-xs font-medium text-white shadow-lg">
-            {LABELS[activePoint.key]} · {formatUSD(activePoint.value)}
-          </div>
-        </div>
-      </div>
+      {safePoints.map((pt) => {
+        const t = tOf(pt.value);
+        const a = angle(t);
+        const onArc = xy(a, radius, cx, cy);
+        const outside = xy(a, radius + 36, cx, cy);
+        const anchor = t < 0.33 ? "start" : t > 0.67 ? "end" : "middle";
+        const clampX = (x: number) => Math.max(12, Math.min(w - 12, x));
+        const lx = clampX(outside.x);
+        const ly1 = Math.max(16, Math.min(h - 18, outside.y - 6));
+        const ly2 = Math.max(32, Math.min(h - 4, outside.y + 12));
+        const valueParts = getValueParts(pt.value);
 
-      <div className="absolute inset-0" onMouseLeave={handleReset}>
-        {points.map((point) => (
-          <button
-            key={`tile-${point.key}`}
-            type="button"
-            onMouseEnter={handleActivate(point.key)}
-            onMouseLeave={handleReset}
-            onFocus={handleActivate(point.key)}
-            onBlur={handleReset}
-            className={`pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 select-none rounded-lg border px-3 py-1 text-xs font-semibold shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 motion-reduce:transition-none ${
-              point.key === activeKey
-                ? "border-slate-900 bg-slate-900 text-white focus-visible:ring-slate-700"
-                : "border-white/60 bg-white/70 text-slate-700 backdrop-blur focus-visible:ring-slate-300"
-            }`}
-            style={{
-              left: `${(point.tileX / width) * 100}%`,
-              top: `${(point.tileY / height) * 100}%`,
-            }}
-            aria-pressed={point.key === activeKey}
-            aria-label={`${LABELS[point.key]} ${formatUSD(point.value)}`}
-          >
-            {LABELS[point.key]}
-          </button>
-        ))}
-      </div>
-    </div>
+        return (
+          <g key={pt.id} pointerEvents="none">
+            <line
+              x1={onArc.x}
+              y1={onArc.y}
+              x2={lx}
+              y2={outside.y}
+              stroke="#94A3B8"
+              strokeWidth={1.25}
+            />
+            <circle cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />
+            {pt.id !== "market" && (
+              <>
+                <text
+                  x={lx}
+                  y={ly1}
+                  fontSize={12}
+                  textAnchor={anchor as any}
+                  style={haloStyle}
+                  dominantBaseline="central"
+                  fill="#475569"
+                >
+                  {pt.label}
+                </text>
+                <text
+                  x={lx}
+                  y={ly2}
+                  className="tabular-nums"
+                  fontSize={13}
+                  fontWeight={600}
+                  textAnchor={anchor as any}
+                  style={haloStyle}
+                  dominantBaseline="central"
+                  fill="#0F172A"
+                >
+                  {valueParts.map((part, idx) =>
+                    part.type === "group" ? (
+                      <tspan key={`${pt.id}-group-${idx}`} aria-hidden="true">
+                        {part.value}
+                      </tspan>
+                    ) : (
+                      <tspan key={`${pt.id}-part-${idx}`}>{part.value}</tspan>
+                    ),
+                  )}
+                </text>
+              </>
+            )}
+          </g>
+        );
+      })}
+
+      <line
+        x1={cx}
+        y1={cy}
+        x2={needleTip.x}
+        y2={needleTip.y}
+        stroke="#0F172A"
+        strokeWidth={3}
+        strokeLinecap="round"
+      />
+      <circle cx={cx} cy={cy} r={8} fill="#0F172A" />
+    </svg>
   );
 }
