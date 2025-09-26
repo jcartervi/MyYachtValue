@@ -1,5 +1,7 @@
 import * as React from "react";
 
+import { LABELS } from "./labels";
+
 type ValuationGaugeProps = {
   wholesale: number;
   market: number;
@@ -74,7 +76,7 @@ export default function ValuationGauge({
   const needleX = cx + needleInnerRadius * Math.cos(needleAngle);
   const needleY = cy + needleInnerRadius * Math.sin(needleAngle);
 
-  const label = `${ariaLabel}. Wholesale ${formatUSD(safeWholesale)}. Market ${formatUSD(clampedMarket)}. Replacement ${formatUSD(safeReplacement)}.`;
+  const label = `${ariaLabel}. ${LABELS.wholesale} ${formatUSD(safeWholesale)}. ${LABELS.market} ${formatUSD(clampedMarket)}. ${LABELS.replacement} ${formatUSD(safeReplacement)}.`;
 
   return (
     <div className="w-full flex justify-center">
