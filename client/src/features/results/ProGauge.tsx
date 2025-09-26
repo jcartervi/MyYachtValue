@@ -109,7 +109,8 @@ export default function ProGauge({
       const end = angle(to);
       const startPoint = xy(start, radius, cx, cy);
       const endPoint = xy(end, radius, cx, cy);
-      const largeArc = Math.abs(end - start) > Math.PI ? 1 : 0;
+      const spanT = Math.max(0, Math.min(1, to - from));
+      const largeArc = spanT >= 0.5 ? 1 : 0;
       const sweepFlag = end > start ? 1 : 0;
 
       return `M ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} ${sweepFlag} ${endPoint.x} ${endPoint.y}`;
@@ -169,14 +170,14 @@ export default function ProGauge({
     updateScrub(null);
   }, [updateScrub]);
 
-  const tickCount = 9;
+  const tickCount = 6;
   const ticks = React.useMemo(
     () =>
       Array.from({ length: tickCount }, (_, index) => {
         const t = index / (tickCount - 1);
         const ang = angle(t);
         const inner = xy(ang, radius - 10, cx, cy);
-        const outer = xy(ang, radius - 2, cx, cy);
+        const outer = xy(ang, radius + 2, cx, cy);
         return { id: index, inner, outer };
       }),
     [cx, cy, radius],
@@ -251,39 +252,58 @@ export default function ProGauge({
       onKeyDown={interactive ? handleKeyDown : undefined}
       onBlur={handleBlur}
       style={{
-        overflow: "hidden",
+        overflow: "visible",
         cursor: interactive ? "pointer" : "default",
         transition: prefersReducedMotion ? "none" : "filter 150ms ease",
       }}
       data-prefers-reduced-motion={prefersReducedMotion ? "true" : "false"}
     >
-      <path
-        d={arc(0, 1)}
-        stroke="#E6E8EC"
-        strokeWidth={trackWidth}
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d={arc(0, activeT)}
-        stroke="#0F172A"
-        strokeWidth={valueWidth + 1}
-        strokeLinecap="round"
-        fill="none"
-      />
+      <defs>
+        <clipPath id="upperClip">
+          <rect x={0} y={0} width={w} height={cy + 4} />
+        </clipPath>
+      </defs>
 
-      {ticks.map((tick) => (
-        <line
-          key={tick.id}
-          x1={tick.inner.x}
-          y1={tick.inner.y}
-          x2={tick.outer.x}
-          y2={tick.outer.y}
-          stroke="#0F172A"
-          strokeWidth={1.5}
-          opacity={0.35}
+      <g clipPath="url(#upperClip)">
+        <path
+          d={arc(0, 1)}
+          stroke="#CBD5E1"
+          strokeWidth={trackWidth + 1}
+          strokeLinecap="round"
+          fill="none"
         />
-      ))}
+        <path
+          d={arc(0, activeT)}
+          stroke="#0F172A"
+          strokeWidth={valueWidth + 2}
+          strokeLinecap="round"
+          fill="none"
+        />
+
+        {ticks.map((tick) => (
+          <line
+            key={tick.id}
+            x1={tick.inner.x}
+            y1={tick.inner.y}
+            x2={tick.outer.x}
+            y2={tick.outer.y}
+            stroke="#94A3B8"
+            strokeWidth={1.5}
+            opacity={0.35}
+          />
+        ))}
+
+        <line
+          x1={cx}
+          y1={cy}
+          x2={needleTip.x}
+          y2={needleTip.y}
+          stroke="#0F172A"
+          strokeWidth={3}
+          strokeLinecap="round"
+        />
+        <circle cx={cx} cy={cy} r={6} fill="#0F172A" />
+      </g>
 
       {safePoints.map((pt) => {
         const t = tOf(pt.value);
@@ -292,9 +312,11 @@ export default function ProGauge({
         const outside = xy(a, radius + 36, cx, cy);
         const anchor = t < 0.33 ? "start" : t > 0.67 ? "end" : "middle";
         const clampX = (x: number) => Math.max(12, Math.min(w - 12, x));
+        const clampY = (y: number) => Math.max(12, Math.min(cy - 8, y));
         const lx = clampX(outside.x);
-        const ly1 = Math.max(16, Math.min(h - 18, outside.y - 6));
-        const ly2 = Math.max(32, Math.min(h - 4, outside.y + 12));
+        const ly1 = clampY(outside.y - 6);
+        const ly2 = clampY(outside.y + 12);
+        const lineY = clampY(outside.y);
         const valueParts = getValueParts(pt.value);
 
         return (
@@ -303,7 +325,7 @@ export default function ProGauge({
               x1={onArc.x}
               y1={onArc.y}
               x2={lx}
-              y2={outside.y}
+              y2={lineY}
               stroke="#94A3B8"
               strokeWidth={1.25}
             />
@@ -347,17 +369,6 @@ export default function ProGauge({
           </g>
         );
       })}
-
-      <line
-        x1={cx}
-        y1={cy}
-        x2={needleTip.x}
-        y2={needleTip.y}
-        stroke="#0F172A"
-        strokeWidth={3}
-        strokeLinecap="round"
-      />
-      <circle cx={cx} cy={cy} r={8} fill="#0F172A" />
     </svg>
   );
 }
