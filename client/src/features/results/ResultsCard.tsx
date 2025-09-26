@@ -1,16 +1,27 @@
-import MinimalGauge from "./MinimalGauge";
+import ProGauge from "./ProGauge";
 import { LABELS } from "./labels";
+import { formatUSD } from "./format";
 
 export default function ResultsCard({
   wholesale,
   market,
   replacement,
 }: { wholesale: number; market: number; replacement: number; }) {
+  const gaugeWidth = "min(100%, clamp(340px, 60vw, 640px))";
+  const safeWholesale = Number.isFinite(wholesale) ? wholesale : 0;
+  const safeReplacement = Number.isFinite(replacement) ? replacement : safeWholesale + 1;
+  const minValue = Math.min(safeWholesale, safeReplacement);
+  const maxValue = Math.max(safeWholesale, safeReplacement);
+  const span = maxValue - minValue || 1;
+  const fallbackMarket = minValue + span / 2;
+  const safeMarket = Number.isFinite(market) ? market : fallbackMarket;
+  const clampedMarket = Math.min(Math.max(safeMarket, minValue), maxValue);
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 md:px-6">
       <div className="rounded-2xl bg-white shadow-lg ring-1 ring-black/5">
-        <div className="px-6 pt-8 pb-4 md:px-10">
-          <div className="text-center mb-6">
+        <div className="px-6 pt-8 pb-16 md:px-10">
+          <div className="mb-6 text-center">
             <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-slate-900">
               Valuation Results
             </h2>
@@ -20,49 +31,55 @@ export default function ResultsCard({
           </div>
 
           <div className="flex justify-center">
-            <MinimalGauge
-              min={wholesale}
-              value={market}
-              max={replacement}
-              size={420}
-              trackWidth={18}
-              valueWidth={18}
-              ariaLabel={`Valuation gauge. Needle indicates ${LABELS.market}.`}
-            />
+            <div className="relative flex w-full justify-center" style={{ width: gaugeWidth }}>
+              <ProGauge
+                wholesale={wholesale}
+                market={market}
+                replacement={replacement}
+                ariaLabel={`Valuation gauge. Needle indicates ${LABELS.market}.`}
+              />
+
+              <div
+                className="pointer-events-none absolute left-1/2 top-[98%] -translate-x-1/2 -translate-y-1/2"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-md">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    {LABELS.market}
+                  </span>
+                  <span className="tabular-nums text-lg font-semibold text-slate-900">
+                    {formatUSD(clampedMarket)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Show values ONLY here */}
-        <div className="grid md:grid-cols-3 gap-4 p-4 md:p-6 border-t border-slate-100">
-          <ValueTile label={LABELS.wholesale} value={wholesale} testId="wholesale-tile" />
-          <ValueTile label={LABELS.market} value={market} emphasis testId="market-tile" />
-          <ValueTile label={LABELS.replacement} value={replacement} testId="replacement-tile" />
+        <div className="border-t border-slate-100 px-6 pb-8 pt-8 md:px-10">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ValueTile label={LABELS.wholesale} value={safeWholesale} testId="wholesale-tile" />
+            <ValueTile label={LABELS.replacement} value={safeReplacement} testId="replacement-tile" />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function ValueTile({ label, value, emphasis = false, testId }:{
-  label: string; value: number; emphasis?: boolean; testId?: string;
+function ValueTile({ label, value, testId }:{
+  label: string; value: number; testId?: string;
 }) {
   return (
     <div
       data-testid={testId}
-      className={`rounded-xl border border-slate-200 bg-slate-50/50 p-4 md:p-5 ${emphasis ? "ring-1 ring-slate-300 bg-white shadow-sm" : ""}`}
+      className="rounded-xl border border-slate-200 bg-slate-50/70 p-5 shadow-sm"
     >
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl md:text-3xl font-semibold text-slate-900 tabular-nums">
-        {formatCurrency(value)}
+      <div className="mt-2 text-2xl md:text-3xl font-semibold text-slate-900 tabular-nums">
+        {formatUSD(value)}
       </div>
     </div>
   );
-}
-
-function formatCurrency(n: number) {
-  try {
-    return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-  } catch {
-    return `$${Math.round(n).toLocaleString()}`;
-  }
 }
