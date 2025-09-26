@@ -9,7 +9,6 @@ import { useUTMTracking } from "@/hooks/use-utm-tracking";
 import HullPriceLogo from "@/components/HullPriceLogo";
 import { Stepper } from "@/components/Stepper";
 import { MetricCard } from "@/components/MetricCard";
-import { Confidence } from "@/components/Confidence";
 import { Loader } from "@/components/Loader";
 
 interface ValuationData {
@@ -94,14 +93,12 @@ export default function BoatValuation() {
         ) : (
           valuationData && (
             <section className="hp-card" style={{padding:18, marginTop:16}}>
-              <div className="hp-grid-2">
+              <div className="hp-grid-2" style={{ gap: 12 }}>
                 <MetricCard label="Low" value={valuationData.estimate.low}/>
                 <MetricCard label="Most Likely" value={valuationData.estimate.mostLikely}/>
                 <MetricCard label="High" value={valuationData.estimate.high}/>
                 <MetricCard label="Wholesale" value={valuationData.estimate.wholesale}/>
               </div>
-              <Confidence level={valuationData.estimate.confidence as "Low" | "Medium" | "High"}/>
-              <p style={{marginTop:12, color:"#334155", whiteSpace:"pre-wrap"}}>{valuationData.estimate.narrative}</p>
             </section>
           )
         )}
