@@ -608,7 +608,7 @@ export default function BoatForm({
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="hp-label">Name (Optional)</FormLabel>
+                      <FormLabel className="hp-label">Name</FormLabel>
                       <FormControl>
                         <Input 
                           className="hp-input"
