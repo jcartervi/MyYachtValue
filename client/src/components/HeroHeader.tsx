@@ -1,4 +1,3 @@
-import { Link } from "wouter";
 import HullPriceLogo from "@/components/HullPriceLogo";
 
 export default function HeroHeader() {
@@ -28,9 +27,7 @@ export default function HeroHeader() {
 
         <nav className="hidden sm:flex items-center gap-4 text-white/85">
           <a href="#how" className="hover:text-white">How it works</a>
-          <Link href="/boat-valuation" className="hover:text-white">
-            Get Estimate
-          </Link>
+          <a href="#estimate" className="hover:text-white">Get Estimate</a>
           <a href="#contact" className="rounded-lg px-3 py-2 bg-white/10 hover:bg-white/20">Contact</a>
         </nav>
       </div>
@@ -46,12 +43,9 @@ export default function HeroHeader() {
           </p>
 
           <div className="mt-6 flex items-center gap-3">
-            <Link
-              href="/boat-valuation"
-              className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-white text-black font-medium hover:bg-white/90"
-            >
+            <a href="#estimate" className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-white text-black font-medium hover:bg-white/90">
               Get My Boat Value
-            </Link>
+            </a>
             <a href="#how" className="inline-flex items-center justify-center px-5 py-3 rounded-xl border border-white/40 text-white hover:bg-white/10">
               See how it works
             </a>
