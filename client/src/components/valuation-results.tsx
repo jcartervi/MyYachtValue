@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ValuationGauge } from "@/components/valuation-gauge";
 
@@ -46,14 +46,22 @@ interface ValuationResultsProps {
 
 export default function ValuationResults({ data, onCallJames, onEmailReport }: ValuationResultsProps) {
   const { lead, vessel, estimate } = data;
-  const marketValue = estimate.mostLikely;
-  const safeMarketValue = Number.isFinite(marketValue) ? marketValue : 0;
-  const wholesaleValue = Number.isFinite(estimate.wholesale) ? estimate.wholesale : safeMarketValue;
-  const lowValue = Number.isFinite(estimate.low) ? estimate.low : safeMarketValue;
-  const highValue = Number.isFinite(estimate.high) ? estimate.high : safeMarketValue;
+  const valuation = {
+    ...estimate,
+    mid: estimate.mostLikely,
+  };
   const replacementMultiplier = Number(import.meta.env.VITE_REPLACEMENT_MULTIPLIER ?? 1.35);
   const safeMultiplier = Number.isFinite(replacementMultiplier) ? replacementMultiplier : 1.35;
-  const replacementValue = Math.round(safeMarketValue * safeMultiplier);
+  const wholesaleValue = Number.isFinite(valuation.wholesale)
+    ? valuation.wholesale
+    : Number.isFinite(valuation.low)
+    ? valuation.low
+    : 0;
+  const marketValue = Number.isFinite(valuation.mid ?? valuation.mostLikely)
+    ? valuation.mid ?? valuation.mostLikely ?? 0
+    : 0;
+  const computedReplacement = valuation.replacement ?? Math.round((valuation.mid ?? 0) * safeMultiplier);
+  const replacementValue = Number.isFinite(computedReplacement) ? computedReplacement : 0;
 
   return (
     <div className="fade-in">
@@ -79,12 +87,33 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
 
         {/* Vessel Summary */}
         <CardContent className="p-6 border-b space-y-8">
-          <ValuationGauge wholesale={wholesaleValue} market={safeMarketValue} replacement={replacementValue} />
-          <div className="sr-only" aria-hidden>
-            <span data-testid="text-most-likely-value">${safeMarketValue.toLocaleString()}</span>
-            <span data-testid="text-low-value">${lowValue.toLocaleString()}</span>
-            <span data-testid="text-high-value">${highValue.toLocaleString()}</span>
-            <span data-testid="text-wholesale-value">${wholesaleValue.toLocaleString()}</span>
+          <ValuationGauge
+            wholesale={valuation.wholesale ?? valuation.low ?? 0}
+            market={valuation.mid ?? valuation.mostLikely ?? 0}
+            replacement={
+              valuation.replacement ??
+              Math.round((valuation.mid ?? 0) * (Number(import.meta.env.VITE_REPLACEMENT_MULTIPLIER ?? 1.35)))
+            }
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-lg border bg-card p-4 text-center shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">Wholesale</div>
+              <div className="mt-1 text-2xl font-semibold text-foreground" data-testid="value-wholesale">
+                ${wholesaleValue.toLocaleString()}
+              </div>
+            </div>
+            <div className="rounded-lg border bg-card p-4 text-center shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">Market Value</div>
+              <div className="mt-1 text-2xl font-semibold text-foreground" data-testid="value-market">
+                ${marketValue.toLocaleString()}
+              </div>
+            </div>
+            <div className="rounded-lg border bg-card p-4 text-center shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">Replacement Cost</div>
+              <div className="mt-1 text-2xl font-semibold text-foreground" data-testid="value-replacement">
+                ${replacementValue.toLocaleString()}
+              </div>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
