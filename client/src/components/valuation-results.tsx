@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ValuationGauge } from "@/components/valuation-gauge";
 
 interface ValuationData {
   lead: {
@@ -45,6 +46,14 @@ interface ValuationResultsProps {
 
 export default function ValuationResults({ data, onCallJames, onEmailReport }: ValuationResultsProps) {
   const { lead, vessel, estimate } = data;
+  const marketValue = estimate.mostLikely;
+  const safeMarketValue = Number.isFinite(marketValue) ? marketValue : 0;
+  const wholesaleValue = Number.isFinite(estimate.wholesale) ? estimate.wholesale : safeMarketValue;
+  const lowValue = Number.isFinite(estimate.low) ? estimate.low : safeMarketValue;
+  const highValue = Number.isFinite(estimate.high) ? estimate.high : safeMarketValue;
+  const replacementMultiplier = Number(import.meta.env.VITE_REPLACEMENT_MULTIPLIER ?? 1.35);
+  const safeMultiplier = Number.isFinite(replacementMultiplier) ? replacementMultiplier : 1.35;
+  const replacementValue = Math.round(safeMarketValue * safeMultiplier);
 
   return (
     <div className="fade-in">
@@ -69,7 +78,15 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
         </div>
 
         {/* Vessel Summary */}
-        <CardContent className="p-6 border-b">
+        <CardContent className="p-6 border-b space-y-8">
+          <ValuationGauge wholesale={wholesaleValue} market={safeMarketValue} replacement={replacementValue} />
+          <div className="sr-only" aria-hidden>
+            <span data-testid="text-most-likely-value">${safeMarketValue.toLocaleString()}</span>
+            <span data-testid="text-low-value">${lowValue.toLocaleString()}</span>
+            <span data-testid="text-high-value">${highValue.toLocaleString()}</span>
+            <span data-testid="text-wholesale-value">${wholesaleValue.toLocaleString()}</span>
+          </div>
+
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-4">Vessel Summary</h3>
@@ -124,34 +141,16 @@ export default function ValuationResults({ data, onCallJames, onEmailReport }: V
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-4">Valuation Range</h3>
-              <div className="space-y-4">
-                <div className="text-center p-4 bg-primary bg-opacity-10 rounded-lg">
-                  <div className="text-sm text-white font-medium mb-1">Estimated Value</div>
-                  <div className="text-3xl font-bold text-white" data-testid="text-most-likely-value">
-                    ${estimate.mostLikely.toLocaleString()}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-muted-foreground mb-1">Low</div>
-                    <div className="font-semibold" data-testid="text-low-value">
-                      ${estimate.low.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-muted-foreground mb-1">High</div>
-                    <div className="font-semibold" data-testid="text-high-value">
-                      ${estimate.high.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-center p-3 bg-secondary rounded-lg">
-                  <div className="text-sm text-muted-foreground mb-1">Wholesale Estimate</div>
-                  <div className="font-semibold text-foreground" data-testid="text-wholesale-value">
-                    ${estimate.wholesale.toLocaleString()}
-                  </div>
-                </div>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Valuation Snapshot</h3>
+              <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+                <p>
+                  Your valuation blends wholesale positioning with a market-driven midpoint and a
+                  replacement lens so you can plan for trade-ins, retail listings, or insurance updates with
+                  confidence.
+                </p>
+                <p>
+                  The premium gauge above visualizes how today&apos;s market compares within that spectrum.
+                </p>
               </div>
             </div>
           </div>
