@@ -33,6 +33,7 @@ interface ValuationData {
     mostLikely: number;
     high: number;
     wholesale: number;
+    replacement?: number;
     confidence: string;
     narrative: string;
     comps: Array<{
@@ -99,50 +100,16 @@ export default function BoatValuation() {
               };
               const replacementMultiplier = Number(import.meta.env.VITE_REPLACEMENT_MULTIPLIER ?? 1.35);
               const safeMultiplier = Number.isFinite(replacementMultiplier) ? replacementMultiplier : 1.35;
-              const wholesaleValue = Number.isFinite(valuation.wholesale)
-                ? valuation.wholesale
-                : Number.isFinite(valuation.low)
-                ? valuation.low
-                : 0;
-              const marketValue = Number.isFinite(valuation.mid ?? valuation.mostLikely)
-                ? valuation.mid ?? valuation.mostLikely ?? 0
-                : 0;
-              const computedReplacement =
-                valuation.replacement ?? Math.round((valuation.mid ?? 0) * safeMultiplier);
-              const replacementValue = Number.isFinite(computedReplacement) ? computedReplacement : 0;
-
               return (
                 <section className="hp-card" style={{ padding: 18, marginTop: 16 }}>
-                  <div className="space-y-6">
-                    <ValuationGauge
-                      wholesale={valuation.wholesale ?? valuation.low ?? 0}
-                      market={valuation.mid ?? valuation.mostLikely ?? 0}
-                      replacement={
-                        valuation.replacement ??
-                        Math.round((valuation.mid ?? 0) * (Number(import.meta.env.VITE_REPLACEMENT_MULTIPLIER ?? 1.35)))
-                      }
-                    />
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="rounded-lg border bg-card p-4 text-center shadow-sm">
-                        <div className="text-sm font-medium text-muted-foreground">Wholesale</div>
-                        <div className="mt-1 text-2xl font-semibold text-foreground" data-testid="value-wholesale">
-                          ${wholesaleValue.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="rounded-lg border bg-card p-4 text-center shadow-sm">
-                        <div className="text-sm font-medium text-muted-foreground">Market Value</div>
-                        <div className="mt-1 text-2xl font-semibold text-foreground" data-testid="value-market">
-                          ${marketValue.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="rounded-lg border bg-card p-4 text-center shadow-sm">
-                        <div className="text-sm font-medium text-muted-foreground">Replacement Cost</div>
-                        <div className="mt-1 text-2xl font-semibold text-foreground" data-testid="value-replacement">
-                          ${replacementValue.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <ValuationGauge
+                    wholesale={valuation.wholesale ?? valuation.low ?? 0}
+                    market={valuation.mid ?? valuation.mostLikely ?? 0}
+                    replacement={
+                      valuation.replacement ??
+                      Math.round((valuation.mid ?? 0) * safeMultiplier)
+                    }
+                  />
                 </section>
               );
             })()
