@@ -100,17 +100,11 @@ export default function PremiumGauge({
           const onArc = xy(a, r);
           const leader = xy(a, r + (isSmall ? 24 : 32));
           const out   = xy(a, r + (isSmall ? 40 : 56));
-          const anchor = u < 0.33 ? "start" : u > 0.67 ? "end" : "middle";
-
-          // Slightly stagger the extreme labels vertically so wholesale/replacement
-          // numbers do not collide when they sit near the top of the dial.
-          const offset =
-            anchor === "start" ? -(isSmall ? 12 : 16) : anchor === "end" ? (isSmall ? 12 : 16) : 0;
-
           const lx = clampX(out.x);
-          const lyBase = clampY(out.y + offset);
+          const lyBase = clampY(out.y);
           const ly1 = lyBase - (isSmall ? 5 : 6);
           const ly2 = lyBase + (isSmall ? 10 : 12);
+          const anchor = u < 0.33 ? "start" : u > 0.67 ? "end" : "middle";
           const isMarket = m.id === "market";
 
           // Market: dot only (big pill handles emphasis below)
@@ -118,14 +112,7 @@ export default function PremiumGauge({
 
           return (
             <g key={m.id} pointerEvents="none">
-              <line
-                x1={onArc.x}
-                y1={onArc.y}
-                x2={clampX(leader.x)}
-                y2={clampY(leader.y + offset * 0.6)}
-                stroke="#94A3B8"
-                strokeWidth={1.25}
-              />
+              <line x1={onArc.x} y1={onArc.y} x2={clampX(leader.x)} y2={clampY(leader.y)} stroke="#94A3B8" strokeWidth={1.25} />
               <circle cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />
               <text
                 x={lx}
