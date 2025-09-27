@@ -26,15 +26,9 @@ const DEFAULT_VALUE_WIDTH = 16;
 
 const PAD_DEG = 12;
 const PAD = (PAD_DEG * Math.PI) / 180;
-const angle = (t: number) => (Math.PI - PAD) - (Math.PI - 2 * PAD) * t;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
-
-const xy = (ang: number, radius: number, cx: number, cy: number) => ({
-  x: cx + Math.cos(ang) * radius,
-  y: cy + Math.sin(ang) * radius,
-});
 
 export default function ProGauge({
   min,
@@ -49,6 +43,8 @@ export default function ProGauge({
 }: ProGaugeProps) {
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const scrubValueRef = React.useRef<number | null>(null);
+  const clipId = React.useId();
+  const [scrubT, setScrubT] = React.useState<number | null>(null);
   const prefersReducedMotion = React.useMemo(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       return false;
@@ -92,46 +88,58 @@ export default function ProGauge({
   const w = size;
   const h = Math.round(size * 0.56);
   const cx = w / 2;
-  const cy = Math.round(h * 0.9);
-  const radius = Math.max(
-    16,
-    Math.min(cx, cy) - Math.max(trackWidth, valueWidth) - 8,
+  const cy = Math.round(h * 0.88);
+  const r = Math.max(18, Math.min(cx, cy) - Math.max(trackWidth, valueWidth) - 10);
+
+  const startA = Math.PI - PAD;
+  const endA = PAD;
+  const angle = React.useCallback(
+    (t: number) => startA + (endA - startA) * t,
+    [endA, startA],
+  );
+  const xy = React.useCallback(
+    (ang: number, rad: number) => ({
+      x: cx + rad * Math.cos(ang),
+      y: cy + rad * Math.sin(ang),
+    }),
+    [cx, cy],
   );
 
-  const activeT = tOf(value);
-  const needleAng = angle(activeT);
-  const needleLen = Math.max(24, radius - valueWidth - 14);
-  const needleTip = xy(needleAng, needleLen, cx, cy);
-
-  const arc = React.useCallback(
-    (from: number, to: number) => {
-      const start = angle(from);
-      const end = angle(to);
-      const startPoint = xy(start, radius, cx, cy);
-      const endPoint = xy(end, radius, cx, cy);
-      const spanT = Math.max(0, Math.min(1, to - from));
-      const largeArc = spanT >= 0.5 ? 1 : 0;
-      const sweepFlag = end > start ? 1 : 0;
-
-      return `M ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} ${sweepFlag} ${endPoint.x} ${endPoint.y}`;
+  const arcPath = React.useCallback(
+    (t0: number, t1: number) => {
+      const a0 = angle(Math.max(0, Math.min(1, t0)));
+      const a1 = angle(Math.max(0, Math.min(1, t1)));
+      const p0 = xy(a0, r);
+      const p1 = xy(a1, r);
+      const large = 0;
+      const sweep = 0;
+      return `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${large} ${sweep} ${p1.x} ${p1.y}`;
     },
-    [cx, cy, radius],
+    [angle, r, xy],
   );
+
+  const activeT = scrubT ?? tOf(value);
+  const needleAng = angle(activeT);
+  const needleLen = Math.max(28, r - valueWidth - 16);
+  const needleTip = xy(needleAng, needleLen);
 
   const updateScrub = React.useCallback(
     (next: number | null) => {
+      const nextT = next == null ? null : tOf(next);
+      setScrubT(nextT);
       if (!onScrub) return;
       const current = scrubValueRef.current;
       if (current === next) return;
       scrubValueRef.current = next;
       onScrub(next ?? undefined);
     },
-    [onScrub],
+    [onScrub, tOf],
   );
 
   React.useEffect(() => {
     scrubValueRef.current = null;
-  }, [value, domainMin, domainMax]);
+    setScrubT(null);
+  }, [domainMin, domainMax, value]);
 
   const handlePointerMove = React.useCallback(
     (event: React.PointerEvent<SVGSVGElement>) => {
@@ -140,11 +148,12 @@ export default function ProGauge({
       const px = event.clientX - rect.left;
       const py = event.clientY - rect.top;
       const ang = Math.atan2(py - cy, px - cx);
-      const t = clamp((Math.PI - PAD - ang) / (Math.PI - 2 * PAD), 0, 1);
+      const raw = (ang - startA) / (endA - startA);
+      const t = clamp(raw, 0, 1);
       const nextValue = vOf(t);
       updateScrub(nextValue);
     },
-    [cx, cy, updateScrub, vOf],
+    [cx, cy, endA, startA, updateScrub, vOf],
   );
 
   const handlePointerLeave = React.useCallback(() => {
@@ -160,10 +169,9 @@ export default function ProGauge({
       const base = scrubValueRef.current ?? value;
       const delta = span / 40;
       const next = clampValue(base + direction * delta);
-      scrubValueRef.current = next;
-      onScrub(next);
+      updateScrub(next);
     },
-    [clampValue, onScrub, span, value],
+    [clampValue, onScrub, span, updateScrub, value],
   );
 
   const handleBlur = React.useCallback(() => {
@@ -176,12 +184,14 @@ export default function ProGauge({
       Array.from({ length: tickCount }, (_, index) => {
         const t = index / (tickCount - 1);
         const ang = angle(t);
-        const inner = xy(ang, radius - 10, cx, cy);
-        const outer = xy(ang, radius + 2, cx, cy);
+        const inner = xy(ang, r - 10);
+        const outer = xy(ang, r + 2);
         return { id: index, inner, outer };
       }),
-    [cx, cy, radius],
+    [angle, r, xy],
   );
+
+  const previewValue = scrubT == null ? undefined : vOf(scrubT);
 
   const interactive = Boolean(onScrub);
   const ariaProps = interactive
@@ -189,8 +199,8 @@ export default function ProGauge({
         role: "slider" as const,
         "aria-valuemin": domainMin,
         "aria-valuemax": domainMax,
-        "aria-valuenow": clampValue(value),
-        "aria-valuetext": formatUSD(clampValue(value)),
+        "aria-valuenow": clampValue(previewValue ?? value),
+        "aria-valuetext": formatUSD(clampValue(previewValue ?? value)),
       }
     : ({ role: "img" as const } as const);
 
@@ -242,13 +252,15 @@ export default function ProGauge({
       {...ariaProps}
       aria-label={ariaLabel}
       aria-description="Use arrow keys or hover to preview."
+      width={w}
+      height={h}
       viewBox={`0 0 ${w} ${h}`}
       className="h-auto w-full"
       tabIndex={interactive ? 0 : -1}
-      onPointerMove={handlePointerMove}
-      onPointerEnter={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
-      onPointerUp={handlePointerLeave}
+      onPointerMove={interactive ? handlePointerMove : undefined}
+      onPointerEnter={interactive ? handlePointerMove : undefined}
+      onPointerLeave={interactive ? handlePointerLeave : undefined}
+      onPointerUp={interactive ? handlePointerLeave : undefined}
       onKeyDown={interactive ? handleKeyDown : undefined}
       onBlur={handleBlur}
       style={{
@@ -259,21 +271,21 @@ export default function ProGauge({
       data-prefers-reduced-motion={prefersReducedMotion ? "true" : "false"}
     >
       <defs>
-        <clipPath id="upperClip">
-          <rect x={0} y={0} width={w} height={cy + 4} />
+        <clipPath id={clipId}>
+          <rect x={0} y={0} width={w} height={cy + 2} />
         </clipPath>
       </defs>
 
-      <g clipPath="url(#upperClip)">
+      <g clipPath={`url(#${clipId})`}>
         <path
-          d={arc(0, 1)}
-          stroke="#CBD5E1"
-          strokeWidth={trackWidth + 1}
+          d={arcPath(0, 1)}
+          stroke="#94A3B8"
+          strokeWidth={trackWidth + 2}
           strokeLinecap="round"
           fill="none"
         />
         <path
-          d={arc(0, activeT)}
+          d={arcPath(0, activeT)}
           stroke="#0F172A"
           strokeWidth={valueWidth + 2}
           strokeLinecap="round"
@@ -308,15 +320,14 @@ export default function ProGauge({
       {safePoints.map((pt) => {
         const t = tOf(pt.value);
         const a = angle(t);
-        const onArc = xy(a, radius, cx, cy);
-        const outside = xy(a, radius + 36, cx, cy);
+        const onArc = xy(a, r);
+        const outside = xy(a, r + 36);
         const anchor = t < 0.33 ? "start" : t > 0.67 ? "end" : "middle";
         const clampX = (x: number) => Math.max(12, Math.min(w - 12, x));
         const clampY = (y: number) => Math.max(12, Math.min(cy - 8, y));
         const lx = clampX(outside.x);
-        const ly1 = clampY(outside.y - 6);
-        const ly2 = clampY(outside.y + 12);
-        const lineY = clampY(outside.y);
+        const ly1 = clampY(outside.y - 8);
+        const ly2 = clampY(outside.y + 10);
         const valueParts = getValueParts(pt.value);
 
         return (
@@ -325,7 +336,7 @@ export default function ProGauge({
               x1={onArc.x}
               y1={onArc.y}
               x2={lx}
-              y2={lineY}
+              y2={clampY(outside.y)}
               stroke="#94A3B8"
               strokeWidth={1.25}
             />

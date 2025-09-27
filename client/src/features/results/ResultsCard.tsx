@@ -102,7 +102,7 @@ export default function ResultsCard({
 
           <div className="relative flex justify-center">
             <div
-              className="mt-[-10px] mb-2 inline-flex max-w-full items-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-md ring-1 ring-slate-200"
+              className="mt-[-8px] mb-2 inline-flex max-w-full items-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-md ring-1 ring-slate-200"
               style={{ minHeight: 56 }}
               data-testid="market-tile"
               aria-live="polite"
