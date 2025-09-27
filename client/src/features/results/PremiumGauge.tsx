@@ -59,15 +59,15 @@ export default function PremiumGauge({
   const needleLen = Math.max(26, r - valueWidth - 20);
   const needleTip = xy(angle(tNeedle), needleLen);
 
-  // label helpers (SVG-only; haloed text for legibility)
-  const clampX = (x:number) => Math.max(16, Math.min(w - 16, x));
-  const clampY = (y:number) => Math.max(12, Math.min(cy - 8, y));
-  const halo = { paintOrder: "stroke", stroke: "white", strokeWidth: 3, strokeLinejoin: "round" } as const;
-
   // adaptive text sizes for small dials (mobile)
   const isSmall = w < 400;
   const fsLabel = isSmall ? 11 : 12;
   const fsValue = isSmall ? 12.5 : 13;
+
+  // label helpers (SVG-only; haloed text for legibility)
+  const clampX = (x:number) => Math.max(16, Math.min(w - 16, x));
+  const clampY = (y:number) => Math.max(12, Math.min(cy - (isSmall ? 26 : 34), y));
+  const halo = { paintOrder: "stroke", stroke: "white", strokeWidth: 3, strokeLinejoin: "round" } as const;
 
   return (
     <div className="w-full flex justify-center">
@@ -98,10 +98,12 @@ export default function PremiumGauge({
           const u = tOf(m.value);
           const a = angle(u);
           const onArc = xy(a, r);
-          const out   = xy(a, r + (w < 400 ? 28 : 34));
+          const leader = xy(a, r + (isSmall ? 24 : 32));
+          const out   = xy(a, r + (isSmall ? 40 : 56));
           const lx = clampX(out.x);
-          const ly1 = clampY(out.y - (w < 400 ? 5 : 6));
-          const ly2 = clampY(out.y + (w < 400 ? 10 : 12));
+          const lyBase = clampY(out.y);
+          const ly1 = lyBase - (isSmall ? 5 : 6);
+          const ly2 = lyBase + (isSmall ? 10 : 12);
           const anchor = u < 0.33 ? "start" : u > 0.67 ? "end" : "middle";
           const isMarket = m.id === "market";
 
@@ -110,7 +112,7 @@ export default function PremiumGauge({
 
           return (
             <g key={m.id} pointerEvents="none">
-              <line x1={onArc.x} y1={onArc.y} x2={lx} y2={clampY(out.y)} stroke="#94A3B8" strokeWidth={1.25} />
+              <line x1={onArc.x} y1={onArc.y} x2={clampX(leader.x)} y2={clampY(leader.y)} stroke="#94A3B8" strokeWidth={1.25} />
               <circle cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />
               <text
                 x={lx}
