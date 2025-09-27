@@ -20,45 +20,48 @@ export default function PremiumGauge({
   max,
   value,
   markers,
-  size = 480,
+  size = 520,              // keep main’s default
   trackWidth = 14,
   valueWidth = 16,
   showTicks = true,
   ariaLabel = "Valuation gauge. Needle marks Market Value.",
 }: Props) {
-  // geometry
+  // geometry (canvas derived from size; center at top, arc drawn “up” with sweep=1)
   const w = size;
   const isSmall = w < 400;
   const cx = w / 2;
+
   const rimPadding = Math.max(trackWidth, valueWidth) + (isSmall ? 8 : 12);
   const r = Math.max(24, cx - rimPadding);
-  const topPad = isSmall ? 10 : 14;
-  const labelBand = isSmall ? 74 : 102;
-  const cy = r + topPad;
-  const h = cy + labelBand;
 
-  const clamp = (n:number, a:number, b:number) => Math.min(Math.max(n, Math.min(a,b)), Math.max(a,b));
+  const topPad = isSmall ? 10 : 14;        // space above the semicircle
+  const labelBand = isSmall ? 74 : 102;    // vertical room for labels below
+  const cy = r + topPad;                   // arc baseline (center y)
+  const h = cy + labelBand;                // svg height
+
+  const clamp = (n: number, a: number, b: number) => Math.min(Math.max(n, Math.min(a, b)), Math.max(a, b));
   const span  = Math.max(1, Math.abs(max - min));
-  const tOf   = (v:number) => (clamp(v, min, max) - min) / span; // 0..1
+  const tOf   = (v: number) => (clamp(v, min, max) - min) / span; // 0..1
 
-  // ALWAYS draw upper semicircle with small end padding (no flips)
+  // Deterministic UPPER semicircle with small angular padding
   const PAD = (10 * Math.PI) / 180;
   const startA = Math.PI - PAD;
   const endA   = PAD;
-  const angle  = (u:number) => startA + (endA - startA) * u;
-  const xy     = (a:number, rad:number) => ({ x: cx + rad*Math.cos(a), y: cy - rad*Math.sin(a) });
+  const angle  = (u: number) => startA + (endA - startA) * u;
+  // NOTE: y uses "-" here to draw “up” since cy is at the arc baseline
+  const xy     = (a: number, rad: number) => ({ x: cx + rad * Math.cos(a), y: cy - rad * Math.sin(a) });
 
-  const arcPath = (u0:number, u1:number) => {
+  const arcPath = (u0: number, u1: number) => {
     const a0 = angle(Math.max(0, Math.min(1, u0)));
     const a1 = angle(Math.max(0, Math.min(1, u1)));
     const p0 = xy(a0, r), p1 = xy(a1, r);
-    // sweep=1 draws clockwise so the arc stays on the upper half-plane
+    // sweep=1 (clockwise) keeps the path on the upper half-plane with this coordinate system
     return `M ${p0.x} ${p0.y} A ${r} ${r} 0 0 1 ${p1.x} ${p1.y}`;
   };
 
-  // value → needle
+  // value → needle with end padding so it never hits caps
   const tVal = tOf(value);
-  const PAD_T = 0.012;                  // ~1.2% from each end
+  const PAD_T = 0.012; // ~1.2% from each end
   const tNeedle = Math.max(PAD_T, Math.min(1 - PAD_T, tVal));
   const needleLen = Math.max(26, r - valueWidth - 20);
   const needleTip = xy(angle(tNeedle), needleLen);
@@ -68,10 +71,9 @@ export default function PremiumGauge({
   const fsValue = isSmall ? 12.5 : 13;
 
   // label helpers (SVG-only; haloed text for legibility)
-  const clampX = (x:number) => Math.max(20, Math.min(w - 20, x));
-  const clampLeaderY = (y:number) => Math.max(topPad, Math.min(cy - (isSmall ? 10 : 14), y));
-  const clampLabelY = (y:number) =>
-    Math.max(cy + (isSmall ? 8 : 12), Math.min(cy + labelBand - (isSmall ? 14 : 18), y));
+  const clampX = (x: number) => Math.max(20, Math.min(w - 20, x));
+  const clampLeaderY = (y: number) => Math.max(topPad, Math.min(cy - (isSmall ? 10 : 14), y));
+  const clampLabelY  = (y: number) => Math.max(cy + (isSmall ? 8 : 12), Math.min(cy + labelBand - (isSmall ? 14 : 18), y));
   const halo = { paintOrder: "stroke", stroke: "white", strokeWidth: 3, strokeLinejoin: "round" } as const;
 
   return (
@@ -84,12 +86,14 @@ export default function PremiumGauge({
         viewBox={`0 0 ${w} ${h}`}
         style={{ overflow: "visible" }}
       >
+        {/* Track & value arc (use tNeedle so the active arc also respects end padding) */}
         <path d={arcPath(0, 1)} stroke="#CBD5E1" strokeWidth={trackWidth + 1} strokeLinecap="round" fill="none" />
-        <path d={arcPath(0, tVal)} stroke="#0F172A" strokeWidth={valueWidth + 2} strokeLinecap="round" fill="none" />
+        <path d={arcPath(0, tNeedle)} stroke="#0F172A" strokeWidth={valueWidth + 2} strokeLinecap="round" fill="none" />
 
         {/* Ticks (subtle) */}
         {showTicks && Array.from({ length: 6 }).map((_, i) => {
-          const u = i / 5; const a = angle(u);
+          const u = i / 5;
+          const a = angle(u);
           const p1 = xy(a, r + 2), p2 = xy(a, r - 10);
           return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#94A3B8" strokeWidth={1.5} opacity={0.35} />;
         })}
@@ -98,22 +102,26 @@ export default function PremiumGauge({
         <line x1={cx} y1={cy} x2={needleTip.x} y2={needleTip.y} stroke="#0F172A" strokeWidth={3} strokeLinecap="round" />
         <circle cx={cx} cy={cy} r={6} fill="#0F172A" />
 
-        {/* Positioned NUMBERS on the arc for Wholesale/Replacement (Market is emphasized below) */}
+        {/* Positioned numbers: Wholesale/Replacement; Market gets the big pill below */}
         {markers.map((m) => {
           const u = tOf(m.value);
           const a = angle(u);
           const onArc = xy(a, r);
+
+          // Leader line end and label anchor band (responsive)
           const leader = xy(a, r + (isSmall ? 22 : 30));
-          const out   = xy(a, r + (isSmall ? 52 : 72));
+          const out    = xy(a, r + (isSmall ? 52 : 72));
+
           const lx = clampX(out.x);
           const lyBase = clampLabelY(out.y + (isSmall ? 12 : 16));
           const ly1 = lyBase;
           const ly2 = Math.min(cy + labelBand - (isSmall ? 6 : 8), lyBase + (isSmall ? 13 : 15));
           const anchor = u < 0.33 ? "start" : u > 0.67 ? "end" : "middle";
-          const isMarket = m.id === "market";
 
-          // Market: dot only (big pill handles emphasis below)
-          if (isMarket) return <circle key={m.id} cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />;
+          const isMarket = m.id === "market";
+          if (isMarket) {
+            return <circle key={m.id} cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />;
+          }
 
           return (
             <g key={m.id} pointerEvents="none">
