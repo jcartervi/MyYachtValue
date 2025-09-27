@@ -42,7 +42,7 @@ export default function PremiumGauge({
   const startA = Math.PI - PAD;
   const endA   = PAD;
   const angle  = (u:number) => startA + (endA - startA) * u;
-  const xy     = (a:number, rad:number) => ({ x: cx + rad*Math.cos(a), y: cy + rad*Math.sin(a) });
+  const xy     = (a:number, rad:number) => ({ x: cx + rad*Math.cos(a), y: cy - rad*Math.sin(a) });
 
   const arcPath = (u0:number, u1:number) => {
     const a0 = angle(Math.max(0, Math.min(1, u0)));
