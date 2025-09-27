@@ -20,7 +20,7 @@ export default function PremiumGauge({
   max,
   value,
   markers,
-  size = 560,
+  size = 480,
   trackWidth = 14,
   valueWidth = 16,
   showTicks = true,
@@ -28,10 +28,14 @@ export default function PremiumGauge({
 }: Props) {
   // geometry
   const w = size;
-  const h = Math.round(size * 0.52);
+  const isSmall = w < 400;
   const cx = w / 2;
-  const cy = Math.round(h * 0.92);
-  const r  = Math.max(24, Math.min(cx, cy) - Math.max(trackWidth, valueWidth) - 10);
+  const rimPadding = Math.max(trackWidth, valueWidth) + (isSmall ? 8 : 12);
+  const r = Math.max(24, cx - rimPadding);
+  const topPad = isSmall ? 10 : 14;
+  const labelBand = isSmall ? 74 : 102;
+  const cy = r + topPad;
+  const h = cy + labelBand;
 
   const clamp = (n:number, a:number, b:number) => Math.min(Math.max(n, Math.min(a,b)), Math.max(a,b));
   const span  = Math.max(1, Math.abs(max - min));
@@ -60,13 +64,14 @@ export default function PremiumGauge({
   const needleTip = xy(angle(tNeedle), needleLen);
 
   // adaptive text sizes for small dials (mobile)
-  const isSmall = w < 400;
   const fsLabel = isSmall ? 11 : 12;
   const fsValue = isSmall ? 12.5 : 13;
 
   // label helpers (SVG-only; haloed text for legibility)
-  const clampX = (x:number) => Math.max(16, Math.min(w - 16, x));
-  const clampY = (y:number) => Math.max(12, Math.min(cy - (isSmall ? 26 : 34), y));
+  const clampX = (x:number) => Math.max(20, Math.min(w - 20, x));
+  const clampLeaderY = (y:number) => Math.max(topPad, Math.min(cy - (isSmall ? 10 : 14), y));
+  const clampLabelY = (y:number) =>
+    Math.max(cy + (isSmall ? 8 : 12), Math.min(cy + labelBand - (isSmall ? 14 : 18), y));
   const halo = { paintOrder: "stroke", stroke: "white", strokeWidth: 3, strokeLinejoin: "round" } as const;
 
   return (
@@ -98,12 +103,12 @@ export default function PremiumGauge({
           const u = tOf(m.value);
           const a = angle(u);
           const onArc = xy(a, r);
-          const leader = xy(a, r + (isSmall ? 24 : 32));
-          const out   = xy(a, r + (isSmall ? 40 : 56));
+          const leader = xy(a, r + (isSmall ? 22 : 30));
+          const out   = xy(a, r + (isSmall ? 52 : 72));
           const lx = clampX(out.x);
-          const lyBase = clampY(out.y);
-          const ly1 = lyBase - (isSmall ? 5 : 6);
-          const ly2 = lyBase + (isSmall ? 10 : 12);
+          const lyBase = clampLabelY(out.y + (isSmall ? 12 : 16));
+          const ly1 = lyBase;
+          const ly2 = Math.min(cy + labelBand - (isSmall ? 6 : 8), lyBase + (isSmall ? 13 : 15));
           const anchor = u < 0.33 ? "start" : u > 0.67 ? "end" : "middle";
           const isMarket = m.id === "market";
 
@@ -112,7 +117,14 @@ export default function PremiumGauge({
 
           return (
             <g key={m.id} pointerEvents="none">
-              <line x1={onArc.x} y1={onArc.y} x2={clampX(leader.x)} y2={clampY(leader.y)} stroke="#94A3B8" strokeWidth={1.25} />
+              <line
+                x1={onArc.x}
+                y1={onArc.y}
+                x2={clampX(leader.x)}
+                y2={clampLeaderY(leader.y)}
+                stroke="#94A3B8"
+                strokeWidth={1.25}
+              />
               <circle cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />
               <text
                 x={lx}
