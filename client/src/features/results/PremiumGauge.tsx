@@ -48,8 +48,8 @@ export default function PremiumGauge({
     const a0 = angle(Math.max(0, Math.min(1, u0)));
     const a1 = angle(Math.max(0, Math.min(1, u1)));
     const p0 = xy(a0, r), p1 = xy(a1, r);
-    // sweep=0, large=0 ensures upper arc, never flips
-    return `M ${p0.x} ${p0.y} A ${r} ${r} 0 0 0 ${p1.x} ${p1.y}`;
+    // sweep=1 draws clockwise so the arc stays on the upper half-plane
+    return `M ${p0.x} ${p0.y} A ${r} ${r} 0 0 1 ${p1.x} ${p1.y}`;
   };
 
   // value → needle
