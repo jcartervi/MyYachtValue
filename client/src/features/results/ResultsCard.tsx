@@ -65,8 +65,8 @@ export default function ResultsCard({
         {/* Emphasized, detached Market Value pill (mobile-friendly) */}
         <div className="relative flex justify-center">
           <div
-            className="mt-3 md:mt-4 mb-2 inline-flex max-w-full items-center gap-2 md:gap-3 rounded-2xl bg-white px-4 md:px-6 py-3 md:py-4 shadow-md ring-1 ring-slate-200"
-            style={{ minHeight: w < 400 ? 50 : 56, zIndex: 2 }}
+            className="mt-4 md:mt-5 mb-2 inline-flex max-w-full items-center gap-2 md:gap-3 rounded-2xl bg-white px-4 md:px-6 py-3 md:py-4 shadow-md ring-1 ring-slate-200"
+            style={{ minHeight: 56, zIndex: 2, boxShadow: "0 6px 20px rgba(15,23,42,0.06)" }}
             data-testid="market-tile"
             aria-live="polite"
             aria-atomic="true"
@@ -82,7 +82,7 @@ export default function ResultsCard({
       </div>
 
       {/* Support tiles below divider (balanced, mobile-first) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 p-4 md:p-6 pt-6 md:pt-8 border-t border-slate-100">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 p-4 md:p-6 pt-7 md:pt-9 border-t border-slate-100">
         <ValueTile label={LABELS.wholesale} value={wholesale} testId="wholesale-tile" />
         <ValueTile label={LABELS.replacement} value={replacement} testId="replacement-tile" />
       </div>

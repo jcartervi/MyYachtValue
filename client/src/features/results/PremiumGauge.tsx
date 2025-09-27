@@ -30,15 +30,15 @@ export default function PremiumGauge({
   const w = size;
   const h = Math.round(size * 0.52);
   const cx = w / 2;
-  const cy = Math.round(h * (w < 400 ? 0.78 : 0.86));
-  const r  = Math.max(22, Math.min(cx, cy) - Math.max(trackWidth, valueWidth) - 12);
+  const cy = Math.round(h * 0.92);
+  const r  = Math.max(24, Math.min(cx, cy) - Math.max(trackWidth, valueWidth) - 10);
 
   const clamp = (n:number, a:number, b:number) => Math.min(Math.max(n, Math.min(a,b)), Math.max(a,b));
   const span  = Math.max(1, Math.abs(max - min));
   const tOf   = (v:number) => (clamp(v, min, max) - min) / span; // 0..1
 
   // ALWAYS draw upper semicircle with small end padding (no flips)
-  const PAD = (12 * Math.PI) / 180;
+  const PAD = (10 * Math.PI) / 180;
   const startA = Math.PI - PAD;
   const endA   = PAD;
   const angle  = (u:number) => startA + (endA - startA) * u;
@@ -48,16 +48,16 @@ export default function PremiumGauge({
     const a0 = angle(Math.max(0, Math.min(1, u0)));
     const a1 = angle(Math.max(0, Math.min(1, u1)));
     const p0 = xy(a0, r), p1 = xy(a1, r);
+    // sweep=0, large=0 ensures upper arc, never flips
     return `M ${p0.x} ${p0.y} A ${r} ${r} 0 0 0 ${p1.x} ${p1.y}`;
   };
 
   // value → needle
   const tVal = tOf(value);
-  const needleTip = (() => {
-    const len = Math.max(24, r - valueWidth - (w < 400 ? 26 : 22));
-    const aVal = angle(tVal);
-    return xy(aVal, len);
-  })();
+  const PAD_T = 0.012;                  // ~1.2% from each end
+  const tSafe = Math.max(PAD_T, Math.min(1 - PAD_T, tVal));
+  const needleLen = Math.max(26, r - valueWidth - 20);
+  const needleTip = xy(angle(tSafe), needleLen);
 
   // label helpers (SVG-only; haloed text for legibility)
   const clampX = (x:number) => Math.max(16, Math.min(w - 16, x));
@@ -79,29 +79,19 @@ export default function PremiumGauge({
         viewBox={`0 0 ${w} ${h}`}
         style={{ overflow: "visible" }}
       >
-        <defs>
-          {/* nothing draws below the semicircle baseline */}
-          <clipPath id="upperClip">
-            <rect x="0" y="0" width={w} height={cy + 1} />
-          </clipPath>
-        </defs>
+        <path d={arcPath(0, 1)} stroke="#CBD5E1" strokeWidth={trackWidth + 1} strokeLinecap="round" fill="none" />
+        <path d={arcPath(0, tSafe)} stroke="#0F172A" strokeWidth={valueWidth + 2} strokeLinecap="round" fill="none" />
 
-        {/* GRAPHICS clipped to the upper half */}
-        <g clipPath="url(#upperClip)">
-          <path d={arcPath(0, 1)} stroke="#CBD5E1" strokeWidth={trackWidth + 1} strokeLinecap="round" fill="none" />
-          <path d={arcPath(0, tVal)} stroke="#0F172A" strokeWidth={valueWidth + 2} strokeLinecap="round" fill="none" />
+        {/* Ticks (subtle) */}
+        {showTicks && Array.from({ length: 6 }).map((_, i) => {
+          const u = i / 5; const a = angle(u);
+          const p1 = xy(a, r + 2), p2 = xy(a, r - 10);
+          return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#94A3B8" strokeWidth={1.5} opacity={0.35} />;
+        })}
 
-          {/* Ticks (subtle) */}
-          {showTicks && Array.from({ length: 6 }).map((_, i) => {
-            const u = i / 5; const a = angle(u);
-            const p1 = xy(a, r + 2), p2 = xy(a, r - 10);
-            return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#94A3B8" strokeWidth={1.5} opacity={0.35} />;
-          })}
-
-          {/* Needle */}
-          <line x1={cx} y1={cy} x2={needleTip.x} y2={needleTip.y} stroke="#0F172A" strokeWidth={3} strokeLinecap="round" />
-          <circle cx={cx} cy={cy} r={6} fill="#0F172A" />
-        </g>
+        {/* Needle */}
+        <line x1={cx} y1={cy} x2={needleTip.x} y2={needleTip.y} stroke="#0F172A" strokeWidth={3} strokeLinecap="round" />
+        <circle cx={cx} cy={cy} r={6} fill="#0F172A" />
 
         {/* Positioned NUMBERS on the arc for Wholesale/Replacement (Market is emphasized below) */}
         {markers.map((m) => {
