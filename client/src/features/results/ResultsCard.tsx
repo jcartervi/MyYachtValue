@@ -37,8 +37,6 @@ export default function ResultsCard({
     { id: "replacement", value: replacement, label: LABELS.replacement },
   ];
 
-  const isSmall = w < 400;
-
   return (
     <div className="rounded-2xl bg-white shadow-lg ring-1 ring-black/5">
       <div className="px-4 md:px-10 pt-8">
@@ -67,8 +65,8 @@ export default function ResultsCard({
         {/* Emphasized, detached Market Value pill (mobile-friendly) */}
         <div className="relative flex justify-center">
           <div
-            className={`mt-4 mb-2 inline-flex max-w-full items-center gap-2 md:gap-3 rounded-2xl bg-white px-4 md:px-6 py-3 md:py-4 shadow-md ring-1 ring-slate-200`}
-            style={{ minHeight: isSmall ? 48 : 56, zIndex: 2 }}
+            className="mt-3 md:mt-4 mb-2 inline-flex max-w-full items-center gap-2 md:gap-3 rounded-2xl bg-white px-4 md:px-6 py-3 md:py-4 shadow-md ring-1 ring-slate-200"
+            style={{ minHeight: w < 400 ? 50 : 56, zIndex: 2 }}
             data-testid="market-tile"
             aria-live="polite"
             aria-atomic="true"
@@ -84,7 +82,7 @@ export default function ResultsCard({
       </div>
 
       {/* Support tiles below divider (balanced, mobile-first) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 p-4 md:p-6 pt-5 md:pt-6 border-t border-slate-100">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 p-4 md:p-6 pt-6 md:pt-8 border-t border-slate-100">
         <ValueTile label={LABELS.wholesale} value={wholesale} testId="wholesale-tile" />
         <ValueTile label={LABELS.replacement} value={replacement} testId="replacement-tile" />
       </div>
