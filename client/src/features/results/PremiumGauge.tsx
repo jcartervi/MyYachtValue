@@ -20,7 +20,7 @@ export default function PremiumGauge({
   max,
   value,
   markers,
-  size = 560,
+  size = 520,
   trackWidth = 14,
   valueWidth = 16,
   showTicks = true,
@@ -66,7 +66,7 @@ export default function PremiumGauge({
 
   // label helpers (SVG-only; haloed text for legibility)
   const clampX = (x:number) => Math.max(16, Math.min(w - 16, x));
-  const clampY = (y:number) => Math.max(12, Math.min(cy - (isSmall ? 26 : 34), y));
+  const clampY = (y:number) => Math.max(12, Math.min(cy - (isSmall ? 18 : 24), y));
   const halo = { paintOrder: "stroke", stroke: "white", strokeWidth: 3, strokeLinejoin: "round" } as const;
 
   return (
@@ -99,11 +99,11 @@ export default function PremiumGauge({
           const a = angle(u);
           const onArc = xy(a, r);
           const leader = xy(a, r + (isSmall ? 24 : 32));
-          const out   = xy(a, r + (isSmall ? 40 : 56));
+          const out   = xy(a, r + (isSmall ? 48 : 66));
           const lx = clampX(out.x);
-          const lyBase = clampY(out.y);
-          const ly1 = lyBase - (isSmall ? 5 : 6);
-          const ly2 = lyBase + (isSmall ? 10 : 12);
+          const lyBase = clampY(out.y + (isSmall ? 10 : 14));
+          const ly1 = lyBase;
+          const ly2 = lyBase + (isSmall ? 13 : 15);
           const anchor = u < 0.33 ? "start" : u > 0.67 ? "end" : "middle";
           const isMarket = m.id === "market";
 
