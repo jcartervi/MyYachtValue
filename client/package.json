@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "dev:client": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}
