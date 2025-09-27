@@ -55,9 +55,9 @@ export default function PremiumGauge({
   // value → needle
   const tVal = tOf(value);
   const PAD_T = 0.012;                  // ~1.2% from each end
-  const tSafe = Math.max(PAD_T, Math.min(1 - PAD_T, tVal));
+  const tNeedle = Math.max(PAD_T, Math.min(1 - PAD_T, tVal));
   const needleLen = Math.max(26, r - valueWidth - 20);
-  const needleTip = xy(angle(tSafe), needleLen);
+  const needleTip = xy(angle(tNeedle), needleLen);
 
   // label helpers (SVG-only; haloed text for legibility)
   const clampX = (x:number) => Math.max(16, Math.min(w - 16, x));
@@ -80,7 +80,7 @@ export default function PremiumGauge({
         style={{ overflow: "visible" }}
       >
         <path d={arcPath(0, 1)} stroke="#CBD5E1" strokeWidth={trackWidth + 1} strokeLinecap="round" fill="none" />
-        <path d={arcPath(0, tSafe)} stroke="#0F172A" strokeWidth={valueWidth + 2} strokeLinecap="round" fill="none" />
+        <path d={arcPath(0, tVal)} stroke="#0F172A" strokeWidth={valueWidth + 2} strokeLinecap="round" fill="none" />
 
         {/* Ticks (subtle) */}
         {showTicks && Array.from({ length: 6 }).map((_, i) => {
