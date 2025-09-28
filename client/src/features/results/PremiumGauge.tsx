@@ -112,11 +112,14 @@ export default function PremiumGauge({
           const leader = xy(a, r + (isSmall ? 22 : 30));
           const out    = xy(a, r + (isSmall ? 52 : 72));
 
-          const lx = clampX(out.x);
+          const anchor = u < 0.34 ? "end" : u > 0.66 ? "start" : "middle";
+          const labelOffset = isSmall ? 6 : 10;
+
+          const shift = anchor === "end" ? -labelOffset : anchor === "start" ? labelOffset : 0;
+          const lx = clampX(out.x + shift);
           const lyBase = clampLabelY(out.y + (isSmall ? 12 : 16));
           const ly1 = lyBase;
           const ly2 = Math.min(cy + labelBand - (isSmall ? 6 : 8), lyBase + (isSmall ? 13 : 15));
-          const anchor = u < 0.33 ? "start" : u > 0.67 ? "end" : "middle";
 
           const isMarket = m.id === "market";
           if (isMarket) {
@@ -128,7 +131,7 @@ export default function PremiumGauge({
               <line
                 x1={onArc.x}
                 y1={onArc.y}
-                x2={clampX(leader.x)}
+                x2={clampX(leader.x + shift)}
                 y2={clampLeaderY(leader.y)}
                 stroke="#94A3B8"
                 strokeWidth={1.25}
