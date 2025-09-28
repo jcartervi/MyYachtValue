@@ -3,18 +3,41 @@ import PremiumGauge from "./PremiumGauge";
 import { LABELS } from "./labels";
 import { formatUSD } from "./format";
 
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+
 function useContainerWidth(min = 320, max = 640, pct = 0.86) {
   const ref = React.useRef<HTMLDivElement>(null);
-  const [w, setW] = React.useState<number>(Math.max(min, Math.min(max, 560)));
+  const clamp = React.useCallback(
+    (cw: number) => Math.round(Math.max(min, Math.min(max, cw * pct))),
+    [min, max, pct],
+  );
+
+  const [w, setW] = React.useState<number>(() => {
+    if (typeof window === "undefined") return min;
+    return clamp(window.innerWidth);
+  });
+
+  const update = React.useCallback(
+    (cw: number) => {
+      setW(clamp(cw));
+    },
+    [clamp],
+  );
+
+  useIsomorphicLayoutEffect(() => {
+    if (!ref.current) return;
+    update(ref.current.offsetWidth || min);
+  }, [min, update]);
+
   React.useEffect(() => {
     if (!ref.current || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(([entry]) => {
-      const cw = entry.contentRect.width;
-      setW(Math.round(Math.max(min, Math.min(max, cw * pct))));
+      update(entry.contentRect.width);
     });
     ro.observe(ref.current);
     return () => ro.disconnect();
-  }, [min, max, pct]);
+  }, [update]);
+
   return { ref, w };
 }
 
