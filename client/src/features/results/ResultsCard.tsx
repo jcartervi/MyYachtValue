@@ -5,11 +5,17 @@ import { formatUSD } from "./format";
 
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
 
-function useContainerWidth(min = 320, max = 640, pct = 0.86) {
+function useContainerWidth(min = 260, max = 640) {
   const ref = React.useRef<HTMLDivElement>(null);
   const clamp = React.useCallback(
-    (cw: number) => Math.round(Math.max(min, Math.min(max, cw * pct))),
-    [min, max, pct],
+    (cw: number) => {
+      const isCompact = cw < 420;
+      const pct = isCompact ? 0.74 : 0.86;
+      const targetMin = isCompact ? 240 : min;
+      const target = cw * pct;
+      return Math.round(Math.max(targetMin, Math.min(max, target)));
+    },
+    [max, min],
   );
 
   const [w, setW] = React.useState<number>(() => {
