@@ -1,9 +1,9 @@
-interface HullPriceLogoProps {
+interface MyYachtValueLogoProps {
   size?: number;
   className?: string;
 }
 
-export default function HullPriceLogo({ size = 40, className = "" }: HullPriceLogoProps) {
+export default function MyYachtValueLogo({ size = 40, className = "" }: MyYachtValueLogoProps) {
   return (
     <div
       className={`rounded-xl bg-white/90 backdrop-blur text-black font-bold grid place-items-center ${className}`}

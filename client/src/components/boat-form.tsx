@@ -738,7 +738,7 @@ export default function BoatForm({
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>
-                          I agree to receive texts/calls from HullPrice
+                          I agree to receive texts/calls from MyYachtValue
                         </FormLabel>
                         <FormDescription>
                           Message & data rates may apply. You can opt out at any time.

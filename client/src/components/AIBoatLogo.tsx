@@ -1,5 +1,5 @@
-// Legacy component - use HullPriceLogo instead
-import HullPriceLogo from "@/components/HullPriceLogo";
+// Legacy component - use MyYachtValueLogo instead
+import MyYachtValueLogo from "@/components/MyYachtValueLogo";
 
 interface AIBoatLogoProps {
   size?: number;
@@ -7,5 +7,5 @@ interface AIBoatLogoProps {
 }
 
 export default function AIBoatLogo({ size = 28, className = "text-primary" }: AIBoatLogoProps) {
-  return <HullPriceLogo size={size} className={className} />;
+  return <MyYachtValueLogo size={size} className={className} />;
 }
