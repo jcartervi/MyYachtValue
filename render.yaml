@@ -20,7 +20,7 @@ services:
       - key: MYV_SENTRY_DSN
         sync: false
 
-  - type: static
+  - type: static_site
     name: myyachtvalue-web
     plan: starter
     rootDir: client
