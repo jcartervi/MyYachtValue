@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: myyachtvalue-api
+    env: python
+    plan: starter
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    autoDeploy: true
+    runtime: python3
+    healthCheckPath: /health
+    envVars:
+      - key: MYV_OPENAI_API_KEY
+        sync: false
+      - key: MYV_DB_URL
+        sync: false
+      - key: MYV_ENV
+        value: production
+      - key: MYV_SENTRY_DSN
+        sync: false
+
+  - type: static
+    name: myyachtvalue-web
+    plan: starter
+    rootDir: client
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: myyachtvalue-api
+          property: url
+
+databases:
+  - name: myyachtvalue-postgres
+    plan: starter
