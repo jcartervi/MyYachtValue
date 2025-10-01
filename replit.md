@@ -1,6 +1,6 @@
 # Overview
 
-This is a HullPrice boat valuation application that provides instant estimates for vessel values. The application consists of a React frontend with a modern UI built using shadcn/ui components, and a Node.js/Express backend with PostgreSQL database integration. The system collects vessel details through a multi-step form, generates AI-powered estimates using a rules-based estimator service, and integrates with third-party services like Twilio for SMS notifications and Pipedrive for CRM functionality.
+This is a MyYachtValue boat valuation application that provides instant estimates for vessel values. The application consists of a React frontend with a modern UI built using shadcn/ui components, and a Node.js/Express backend with PostgreSQL database integration. The system collects vessel details through a multi-step form, generates AI-powered estimates using a rules-based estimator service, and integrates with third-party services like Twilio for SMS notifications and Pipedrive for CRM functionality.
 
 # User Preferences
 

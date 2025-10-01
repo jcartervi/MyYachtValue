@@ -6,7 +6,7 @@ import ValuationResults from "@/components/valuation-results";
 import ProgressIndicator from "@/components/progress-indicator";
 import { useToast } from "@/hooks/use-toast";
 import { useUTMTracking } from "@/hooks/use-utm-tracking";
-import HullPriceLogo from "@/components/HullPriceLogo";
+import MyYachtValueLogo from "@/components/MyYachtValueLogo";
 import { Stepper } from "@/components/Stepper";
 import { ValuationGauge } from "@/components/valuation-gauge";
 import { Loader } from "@/components/Loader";
@@ -163,7 +163,7 @@ export default function BoatValuation() {
           <Card className="mt-12 shadow-lg">
             <CardContent className="p-8">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2">Why Trust HullPrice?</h2>
+                <h2 className="text-2xl font-bold mb-2">Why Trust MyYachtValue?</h2>
                 <p className="text-muted-foreground">Your boat valuation is powered by advanced technology and real market data</p>
               </div>
               <div className="grid md:grid-cols-4 gap-8 text-center">
@@ -196,10 +196,10 @@ export default function BoatValuation() {
             <div className="md:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center ring-1 ring-border bg-transparent">
-                  <HullPriceLogo size={48} />
+                  <MyYachtValueLogo size={48} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold">HullPrice</h3>
+                  <h3 className="text-lg font-bold">MyYachtValue</h3>
                   <p className="text-xs text-muted-foreground">Advanced Boat Valuations</p>
                 </div>
               </div>
@@ -237,7 +237,7 @@ export default function BoatValuation() {
                 </div>
                 <div className="flex items-center">
                   <i className="fas fa-envelope mr-2" />
-                  <a href="mailto:support@hullprice.com" className="hover:text-primary">support@hullprice.com</a>
+                  <a href="mailto:support@myyachtvalue.com" className="hover:text-primary">support@myyachtvalue.com</a>
                 </div>
                 <div className="flex items-center">
                   <i className="fas fa-shield-alt mr-2" />
@@ -247,7 +247,7 @@ export default function BoatValuation() {
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 HullPrice. All rights reserved. • Advanced Technology • TCPA Compliant</p>
+            <p>&copy; 2024 MyYachtValue. All rights reserved. • Advanced Technology • TCPA Compliant</p>
           </div>
         </div>
       </footer>
