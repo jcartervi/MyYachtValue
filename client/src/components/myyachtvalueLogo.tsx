@@ -1,19 +1,27 @@
-interface MyYachtValueLogoProps {
-  size?: number;
-  className?: string;
-}
+import * as React from "react";
 
-export default function MyYachtValueLogo({ size = 40, className = "" }: MyYachtValueLogoProps) {
+type Props = { className?: string; title?: string };
+
+export default function MyYachtValueLogo({ className = "h-8 w-auto", title = "MyYachtValue" }: Props) {
   return (
-    <div
-      className={`rounded-xl bg-white/90 backdrop-blur text-black font-bold grid place-items-center ${className}`}
-      style={{
-        width: size,
-        height: size,
-        fontSize: Math.max(12, size * 0.4)
-      }}
+    <svg
+      className={className}
+      viewBox="0 0 640 120"
+      role="img"
+      aria-label={title}
+      xmlns="http://www.w3.org/2000/svg"
     >
-      HP
-    </div>
+      <title>{title}</title>
+      <text
+        x="0"
+        y="82"
+        fontFamily="Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        fontSize="72"
+        fontWeight="700"
+        letterSpacing="-1"
+      >
+        MyYachtValue
+      </text>
+    </svg>
   );
 }
