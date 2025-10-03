@@ -1,7 +1,7 @@
 import * as React from "react";
 import PremiumGauge from "./PremiumGauge";
 import { LABELS } from "./labels";
-import { formatUSD } from "./format";
+import { formatUSD, formatCompactUSD } from "./format";
 
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
 
@@ -60,11 +60,25 @@ export default function ResultsCard({
   const min = Math.min(wholesale, replacement);
   const max = Math.max(wholesale, replacement);
 
+  // Detect mobile viewport for compact formatting
+  const isMobile = w < 640; // sm breakpoint
+
   const markers: React.ComponentProps<typeof PremiumGauge>["markers"] = [
     { id: "wholesale", value: wholesale, label: LABELS.wholesale },
     { id: "market", value: market, label: LABELS.market },
     { id: "replacement", value: replacement, label: LABELS.replacement },
   ];
+
+  // Full formatted values for aria-label and tooltips
+  const fullMarket = formatUSD(market);
+  const fullWholesale = formatUSD(wholesale);
+  const fullReplacement = formatUSD(replacement);
+
+  // Compact or full format for display based on viewport
+  const displayMarket = isMobile ? formatCompactUSD(market) : fullMarket;
+
+  // Construct comprehensive aria-label
+  const gaugeAriaLabel = `Market value ${fullMarket}; wholesale ${fullWholesale}; replacement ${fullReplacement}.`;
 
   return (
     <div className="rounded-2xl bg-white shadow-lg ring-1 ring-black/5">
@@ -87,7 +101,7 @@ export default function ResultsCard({
             size={w}
             trackWidth={14}
             valueWidth={16}
-            ariaLabel="Valuation gauge with positioned values."
+            ariaLabel={gaugeAriaLabel}
           />
         </div>
 
@@ -103,8 +117,11 @@ export default function ResultsCard({
             <span className="text-[10px] md:text-xs uppercase tracking-wide text-slate-500 shrink-0">
               {LABELS.market}
             </span>
-            <span className="text-2xl md:text-4xl font-semibold text-slate-900 tabular-nums truncate">
-              {formatUSD(market)}
+            <span 
+              className="text-2xl md:text-4xl font-semibold text-slate-900 tabular-nums truncate"
+              title={isMobile && market >= 1_000_000 ? fullMarket : undefined}
+            >
+              {displayMarket}
             </span>
           </div>
         </div>
