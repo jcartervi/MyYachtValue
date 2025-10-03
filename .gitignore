@@ -6,3 +6,4 @@ __pycache__/
 attached_assets/
 .env
 **/.env
+dist/
