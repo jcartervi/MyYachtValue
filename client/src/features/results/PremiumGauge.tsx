@@ -12,6 +12,7 @@ type Props = {
   trackWidth?: number;    // px
   valueWidth?: number;    // px
   showTicks?: boolean;
+  showSideLabels?: boolean; // whether to show wholesale/replacement labels on gauge
   ariaLabel?: string;
 };
 
@@ -24,6 +25,7 @@ export default function PremiumGauge({
   trackWidth = 14,
   valueWidth = 16,
   showTicks = true,
+  showSideLabels = true,   // default to true for backward compatibility
   ariaLabel = "Valuation gauge. Needle marks Market Value.",
 }: Props) {
   // geometry (canvas derived from size; center at top, arc drawn “up” with sweep=1)
@@ -108,6 +110,18 @@ export default function PremiumGauge({
           const a = angle(u);
           const onArc = xy(a, r);
 
+          const isMarket = m.id === "market";
+          
+          // Always render market as just a dot
+          if (isMarket) {
+            return <circle key={m.id} cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />;
+          }
+
+          // For wholesale/replacement, only show labels if showSideLabels is true
+          if (!showSideLabels) {
+            return <circle key={m.id} cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />;
+          }
+
           // Leader line end and label anchor band (responsive)
           const leader = xy(a, r + (isSmall ? 22 : 30));
           const out    = xy(a, r + (isSmall ? 52 : 72));
@@ -120,11 +134,6 @@ export default function PremiumGauge({
           const lyBase = clampLabelY(out.y + (isSmall ? 12 : 16));
           const ly1 = lyBase;
           const ly2 = Math.min(cy + labelBand - (isSmall ? 6 : 8), lyBase + (isSmall ? 13 : 15));
-
-          const isMarket = m.id === "market";
-          if (isMarket) {
-            return <circle key={m.id} cx={onArc.x} cy={onArc.y} r={4} fill="#0F172A" />;
-          }
 
           return (
             <g key={m.id} pointerEvents="none">

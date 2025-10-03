@@ -101,6 +101,7 @@ export default function ResultsCard({
             size={w}
             trackWidth={14}
             valueWidth={16}
+            showSideLabels={!isMobile}
             ariaLabel={gaugeAriaLabel}
           />
         </div>
