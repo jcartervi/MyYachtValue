@@ -10,9 +10,22 @@ if (((openai as any).baseURL || "").includes("dpg-")) {
 }
 
 const app = express();
-app.get("/health/openai", (_req, res) => {
-  res.json({ key: !!process.env.OPENAI_API_KEY, model: OPENAI_MODEL });
+
+// Canonical root health endpoint (fast, minimal response)
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
 });
+
+// Legacy /health/openai endpoint (deprecated - use /api/health/openai instead)
+app.get("/health/openai", (_req, res) => {
+  res.json({ 
+    deprecated: true, 
+    use: "/api/health/openai",
+    key: !!process.env.OPENAI_API_KEY, 
+    model: OPENAI_MODEL 
+  });
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
